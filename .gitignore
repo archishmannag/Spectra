@@ -33,3 +33,13 @@
 
 # VS Code
 .vscode/
+
+# Build
+build/
+bin/
+
+# Conan
+conan/
+
+# Presets
+*.json
