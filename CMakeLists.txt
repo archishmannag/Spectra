@@ -7,3 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_subdirectory(src/audio_visualiser)
+add_subdirectory(src/gl_abstraction)
+
+target_link_libraries(visualiser PRIVATE
+    shader
+)
