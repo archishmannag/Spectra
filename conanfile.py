@@ -1,20 +1,25 @@
 from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
 
+
 class AudioVisualiser(ConanFile):
-    name = "AudioVisualiser"
-    version = "0.0.1"
     settings = "os", "compiler", "build_type", "arch"
     generators = "CMakeDeps"
 
     def requirements(self):
+        self.requires("sfml/2.6.2")
         self.requires("glew/2.2.0")
-        self.requires("glfw/3.4")
+        self.requires("glm/1.0.1")
+        self.requires("opengl/system")
+
+    def configure(self):
+        self.options["sfml/*"].shared = False
+        self.options["glew/*"].shared = False
 
     def layout(self):
         cmake_layout(self)
         self.folders.build = "build"
-        self.folders.generators = "conan/debug" if self.settings.build_type == "Debug" else "conan/release"
+        self.folders.generators = "conan/" + str(self.settings.build_type)
 
     def generate(self):
         tc = CMakeToolchain(self)
@@ -24,11 +29,3 @@ class AudioVisualiser(ConanFile):
     def build(self):
         cmake = CMake(self)
         cmake.build()
-
-    def package(self):
-        cmake = CMake(self)
-        cmake.install()
-
-    def test(self):
-        cmake = CMake(self)
-        cmake.test()
