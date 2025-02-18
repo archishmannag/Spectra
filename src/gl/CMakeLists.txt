@@ -1,0 +1,10 @@
+set(OPENGL_MODULES
+    ${CMAKE_CURRENT_SOURCE_DIR}/opengl.cppm
+    ${CMAKE_CURRENT_SOURCE_DIR}/renderer.cppm
+    ${CMAKE_CURRENT_SOURCE_DIR}/vertex_buffer.cppm
+    ${CMAKE_CURRENT_SOURCE_DIR}/index_buffer.cppm
+    ${CMAKE_CURRENT_SOURCE_DIR}/vertex_array.cppm
+    ${CMAKE_CURRENT_SOURCE_DIR}/buffer_layout.cppm
+    ${CMAKE_CURRENT_SOURCE_DIR}/shader.cppm
+    PARENT_SCOPE
+)
