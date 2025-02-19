@@ -1,0 +1,4 @@
+set(MATH_MODULES
+    ${CMAKE_CURRENT_SOURCE_DIR}/fft.cppm
+    PARENT_SCOPE
+)
