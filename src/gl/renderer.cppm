@@ -25,7 +25,6 @@ namespace opengl
     {
         shader.bind();
         varr.bind();
-        ibuf.bind();
 
         glDrawElements(GL_TRIANGLES, ibuf.get_count(), GL_UNSIGNED_INT, nullptr);
     }
