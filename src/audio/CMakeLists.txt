@@ -1,0 +1,4 @@
+set(AUDIO_MODULES
+    ${CMAKE_CURRENT_SOURCE_DIR}/track.cppm
+    PARENT_SCOPE
+)

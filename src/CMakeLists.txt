@@ -1,3 +1,4 @@
+add_subdirectory(audio)
 add_subdirectory(gl)
 add_subdirectory(glm)
 add_subdirectory(math)
@@ -19,6 +20,10 @@ target_sources(${PROJECT_NAME}
     FILE_SET math_modules TYPE CXX_MODULES
     FILES
         ${MATH_MODULES}
+    PRIVATE
+    FILE_SET audio_modules TYPE CXX_MODULES
+    FILES
+        ${AUDIO_MODULES}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -27,7 +32,6 @@ target_link_libraries(${PROJECT_NAME}
         GLEW::GLEW
         glm::glm
         sfml-audio
-        sfml-graphics
         sfml-window
         sfml-system
 )
