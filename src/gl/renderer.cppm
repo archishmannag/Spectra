@@ -26,7 +26,7 @@ namespace opengl
         shader.bind();
         varr.bind();
 
-        glDrawElements(GL_TRIANGLES, ibuf.get_count(), GL_UNSIGNED_INT, nullptr);
+        glDrawElements(GL_TRIANGLES, static_cast<int>(ibuf.get_count()), GL_UNSIGNED_INT, nullptr);
     }
 
     auto c_renderer::clear() const -> void

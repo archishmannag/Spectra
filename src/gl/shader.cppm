@@ -55,7 +55,7 @@ namespace
             }
             else
             {
-                streams[static_cast<int>(type)] << line << '\n';
+                streams[static_cast<std::size_t>(type)] << line << '\n';
             }
         }
 

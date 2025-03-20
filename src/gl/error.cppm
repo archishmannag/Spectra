@@ -8,7 +8,7 @@ export module opengl:error;
 
 export namespace opengl
 {
-    void gl_debug_callback_fn(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *msg, const void *data)
+    void gl_debug_callback_fn(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei /* length */, const GLchar *msg, const void * /* data */)
     {
         std::string i_source;
         std::string i_type;
