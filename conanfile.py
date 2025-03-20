@@ -13,7 +13,6 @@ class AudioVisualiser(ConanFile):
         self.requires("opengl/system")
 
     def configure(self):
-        self.options["sfml/*"].shared = False
         self.options["glew/*"].shared = False
 
     def layout(self):
