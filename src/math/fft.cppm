@@ -1,11 +1,16 @@
 module;
-#include <cmath>
 #include <complex>
+#include <concepts>
 #include <numbers>
+#include <stdexcept>
 #include <valarray>
+#include <vector>
 export module fft;
 
-export namespace math
+using namespace std::literals::complex_literals;
+
+// Implementation
+namespace math
 {
     /**
      * @brief Fast Fourier Transform
@@ -13,51 +18,34 @@ export namespace math
      * NOTE: Ported from https://rosettacode.org/wiki/Fast_Fourier_transform#C++
      *
      * @param x input data
+     * @return transformed data
      */
-    void fft(std::valarray<std::complex<double>> &input)
+    template <std::floating_point T = float>
+    auto fft(std::valarray<std::complex<T>> &input) -> void
     {
-        // DFT
-        unsigned int size = input.size();
-        unsigned int k_val = size;
-        unsigned int n_val{};
-        double theta_t = std::numbers::pi_v<double> / size;
-        std::complex<double> phi_t = std::complex(cos(theta_t), -sin(theta_t));
-        std::complex<double> t_val;
-        while (k_val > 1)
+        auto constexpr pi_val = std::numbers::pi_v<T>;
+        T constexpr real = 1.0;
+        const size_t size = input.size();
+        if (size <= 1)
         {
-            n_val = k_val;
-            k_val >>= 1;
-            phi_t = phi_t * phi_t;
-            t_val = 1.0L;
-            for (unsigned int outer = 0; outer < k_val; outer++)
-            {
-                for (unsigned int inner = outer; inner < size; inner += n_val)
-                {
-                    unsigned int index = inner + k_val;
-                    std::complex<double> val = input[inner] - input[index];
-                    input[inner] += input[index];
-                    input[index] = val * t_val;
-                }
-                t_val *= phi_t;
-            }
+            return;
         }
-        // Decimate
-        auto bits = static_cast<unsigned int>(std::log2(size));
-        for (unsigned int a_val = 0; a_val < size; a_val++)
+
+        // divide
+        std::valarray<std::complex<T>> even = input[std::slice(0, size / 2, 2)];
+        std::valarray<std::complex<T>> odd = input[std::slice(1, size / 2, 2)];
+
+        // conquer
+        fft(even);
+        fft(odd);
+
+        // combine
+        for (size_t k = 0; k < size / 2; ++k)
         {
-            unsigned int b_val = a_val;
-            // Reverse bits
-            b_val = (((b_val & 0xaaaaaaaa) >> 1) | ((b_val & 0x55555555) << 1));
-            b_val = (((b_val & 0xcccccccc) >> 2) | ((b_val & 0x33333333) << 2));
-            b_val = (((b_val & 0xf0f0f0f0) >> 4) | ((b_val & 0x0f0f0f0f) << 4));
-            b_val = (((b_val & 0xff00ff00) >> 8) | ((b_val & 0x00ff00ff) << 8));
-            b_val = ((b_val >> 16) | (b_val << 16)) >> (32 - bits);
-            if (b_val > a_val)
-            {
-                std::complex<double> temp = input[a_val];
-                input[a_val] = input[b_val];
-                input[b_val] = temp;
-            }
+            // Polar rotates the vector, product scales it.
+            std::complex<T> vector = std::polar(real, -2 * pi_val * k / size) * odd[k];
+            input[k] = even[k] + vector;
+            input[k + (size / 2)] = even[k] - vector;
         }
     }
 
@@ -67,8 +55,10 @@ export namespace math
      * NOTE: Ported from https://rosettacode.org/wiki/Fast_Fourier_transform#C++
      *
      * @param x input data
+     * @return transformed data
      */
-    void inv_fft(std::valarray<std::complex<double>> &input)
+    template <std::floating_point T = float>
+    auto ifft(std::valarray<std::complex<T>> &input) -> void
     {
         // conjugate the complex numbers
         input = input.apply(std::conj);
@@ -80,6 +70,39 @@ export namespace math
         input = input.apply(std::conj);
 
         // scale the numbers
-        input /= static_cast<double>(input.size());
+        input /= input.size();
+    }
+} // namespace math
+
+export namespace math
+{
+    template <std::floating_point T = float>
+    auto fft(const std::vector<T> &input) -> std::vector<std::complex<T>>
+    {
+        if (input.empty())
+        {
+            throw std::invalid_argument("Input vector is empty");
+        }
+        std::valarray<std::complex<T>> temp(input.size());
+        std::ranges::transform(input, std::begin(temp), [](T val)
+                               { return std::complex<T>(val, 0); });
+        fft(temp);
+        std::vector<std::complex<T>> output(std::begin(temp), std::end(temp));
+        return output;
+    }
+
+    template <std::floating_point T = float>
+    auto ifft(const std::vector<std::complex<T>> &input) -> std::vector<T>
+    {
+        if (input.empty())
+        {
+            throw std::invalid_argument("Input vector is empty");
+        }
+        std::valarray<std::complex<T>> temp(input.data(), input.size());
+        fft(temp);
+        std::vector<T> output(input.size());
+        std::ranges::transform(std::begin(temp), std::end(temp), std::begin(output), [](std::complex<T> val)
+                               { return val.real(); });
+        return output;
     }
 } // namespace math
