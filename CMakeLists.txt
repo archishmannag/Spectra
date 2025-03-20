@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
 find_package(OpenGL REQUIRED)
-find_package(SFML 2 REQUIRED COMPONENTS audio graphics window system)
+find_package(SFML 2 REQUIRED COMPONENTS audio window system)
 find_package(GLEW REQUIRED)
 find_package(glm REQUIRED)
 
