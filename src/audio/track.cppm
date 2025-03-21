@@ -16,6 +16,7 @@ export namespace music
 
         void play();
         void pause();
+        bool is_playing() const;
 
         std::vector<float> get_samples(int fps) const;
 
@@ -48,9 +49,16 @@ namespace music
         m_sound.pause();
     }
 
+    bool c_track::is_playing() const
+    {
+        return m_sound.getStatus() == sf::Sound::Playing;
+    }
+
     std::vector<float> c_track::get_samples(int fps = 60) const
     {
+        // NOTE: From sf::Music's private function TimeToSamples
         auto offset = (m_sound.getPlayingOffset().asMicroseconds() * m_sample_rate * m_channels + 50'000) / 1'000'000;
+
         std::size_t size = m_sample_rate /* * m_channels */ / fps;
         size = std::min(size, static_cast<std::size_t>(m_buffer.getSampleCount() - offset));
         std::vector<float> samples(size);
@@ -59,7 +67,7 @@ namespace music
             // std::copy_n(m_buffer.getSamples() + offset, size, samples.begin());
             for (auto i = 0; i < size; ++i)
             {
-                samples[i] = m_buffer.getSamples()[offset + (2 * i)];
+                samples[i] = m_buffer.getSamples()[offset + (m_channels * i)];
             }
         }
         return samples;
