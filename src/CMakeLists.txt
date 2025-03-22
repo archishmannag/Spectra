@@ -1,6 +1,5 @@
 add_subdirectory(audio)
 add_subdirectory(gl)
-add_subdirectory(glm)
 add_subdirectory(math)
 
 add_executable(${PROJECT_NAME})
@@ -14,8 +13,10 @@ target_sources(${PROJECT_NAME}
         ${OPENGL_MODULES}
     PRIVATE
     FILE_SET glm_modules TYPE CXX_MODULES # import glm instead of include
+    BASE_DIRS
+        ${glm_INCLUDE_DIRS}/glm
     FILES
-        ${GLM_MODULES}
+        ${glm_INCLUDE_DIRS}/glm/glm.cppm
     PRIVATE
     FILE_SET math_modules TYPE CXX_MODULES
     FILES

@@ -1,4 +1,0 @@
-set(GLM_MODULES
-    ${CMAKE_CURRENT_SOURCE_DIR}/glm.cppm
-    PARENT_SCOPE
-)
