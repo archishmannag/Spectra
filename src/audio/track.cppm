@@ -57,12 +57,13 @@ namespace music
     std::vector<float> c_track::get_samples(int fps = 60) const
     {
         // NOTE: From sf::Music's private function TimeToSamples
-        auto offset = (m_sound.getPlayingOffset().asMicroseconds() * m_sample_rate * m_channels + 50'000) / 1'000'000;
+        auto offset = (m_sound.getPlayingOffset().asMicroseconds() * m_sample_rate * m_channels) / 1'000'000;
 
         std::size_t size = m_sample_rate /* * m_channels */ / fps;
         size = std::min(size, static_cast<std::size_t>(m_buffer.getSampleCount() - offset));
         std::vector<float> samples(size);
-        if (size)
+
+        if (size > 500) // NOTE: Arbitrary threshold number
         {
             // std::copy_n(m_buffer.getSamples() + offset, size, samples.begin());
             for (auto i = 0; i < size; ++i)
