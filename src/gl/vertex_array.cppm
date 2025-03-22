@@ -45,7 +45,7 @@ namespace opengl
         bind();
         vbuff.bind();
         const auto &elements = layout.get_elements();
-        unsigned int offset{};
+        unsigned long long offset{};
 
         for (const auto &[index, element] : elements | std::views::enumerate)
         {

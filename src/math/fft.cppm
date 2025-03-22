@@ -1,4 +1,5 @@
 module;
+#include <algorithm>
 #include <complex>
 #include <concepts>
 #include <numbers>
@@ -43,9 +44,9 @@ namespace math
         for (size_t k = 0; k < size / 2; ++k)
         {
             // Polar rotates the vector, product scales it.
-            std::complex<T> vector = std::polar(real, -2 * pi_val * k / size) * odd[k];
-            input[k] = even[k] + vector;
-            input[k + (size / 2)] = even[k] - vector;
+            std::complex<T> vector = std::operator*(std::polar(real, -2 * pi_val * k / size), odd[k]);
+            input[k] = std::operator+(even[k], vector);
+            input[k + (size / 2)] = std::operator-(even[k], vector);
         }
     }
 
