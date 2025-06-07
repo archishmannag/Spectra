@@ -2,6 +2,7 @@ module;
 
 #include <GL/glew.h>
 
+#include <cstdint>
 #include <ranges>
 
 export module opengl:vertex_array;
@@ -20,7 +21,7 @@ export namespace opengl
         auto add_buffer(const c_vertex_buffer &vbuff, const c_buffer_layout &layout) const -> void;
 
         auto bind() const -> void;
-        auto unbind() -> void;
+        auto unbind() const -> void;
 
     private:
         unsigned int m_renderer_id{};
@@ -45,7 +46,7 @@ namespace opengl
         bind();
         vbuff.bind();
         const auto &elements = layout.get_elements();
-        unsigned long long offset{};
+        std::uint64_t offset{};
 
         for (const auto &[index, element] : elements | std::views::enumerate)
         {
@@ -53,6 +54,7 @@ namespace opengl
             glVertexAttribPointer(index, element.count, element.type, element.normalized, layout.get_stride(), reinterpret_cast<const void *>(offset));
             offset += element.count * s_vertex_buffer_element::get_size_of_type(element.type);
         }
+        unbind();
     }
 
     auto c_vertex_array::bind() const -> void
@@ -60,7 +62,7 @@ namespace opengl
         glBindVertexArray(m_renderer_id);
     }
 
-    auto c_vertex_array::unbind() -> void
+    auto c_vertex_array::unbind() const -> void
     {
         glBindVertexArray(0);
     }

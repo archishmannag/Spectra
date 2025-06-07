@@ -1,8 +1,6 @@
 module;
 #include <GL/glew.h>
 
-#include <glm/gtc/type_ptr.hpp>
-
 #include <filesystem>
 #include <fstream>
 #include <print>
@@ -121,7 +119,7 @@ export namespace opengl
         ~c_shader();
 
         auto bind() const -> void;
-        auto unbind() -> void;
+        auto unbind() const -> void;
 
         auto set_uniform_1f(const std::string &name, float value) -> void;
         auto set_uniform_1i(const std::string &name, int value) -> void;
@@ -162,7 +160,7 @@ namespace opengl
         glUseProgram(m_renderer_id);
     }
 
-    auto c_shader::unbind() -> void
+    auto c_shader::unbind() const -> void
     {
         glUseProgram(0);
     }
@@ -171,7 +169,7 @@ namespace opengl
     {
         if (m_uniform_location_cache.find(name) != m_uniform_location_cache.end())
         {
-            return m_uniform_location_cache["hello"];
+            return m_uniform_location_cache[name];
         }
         int location = glGetUniformLocation(m_renderer_id, name.c_str());
         if (location == -1)
@@ -185,63 +183,63 @@ namespace opengl
     auto c_shader::set_uniform_1f(const std::string &name, float value) -> void
     {
         bind();
-		glUniform1f(get_uniform_location(name), value);
-		unbind();
+        glUniform1f(get_uniform_location(name), value);
+        unbind();
     }
 
     auto c_shader::set_uniform_1i(const std::string &name, int value) -> void
     {
         bind();
-		glUniform1i(get_uniform_location(name), value);
-		unbind();
+        glUniform1i(get_uniform_location(name), value);
+        unbind();
     }
 
     auto c_shader::set_uniform_1ui(const std::string &name, unsigned int value) -> void
     {
         bind();
-		glUniform1ui(get_uniform_location(name), value);
-		unbind();
+        glUniform1ui(get_uniform_location(name), value);
+        unbind();
     }
 
     auto c_shader::set_uniform_1fv(const std::string &name, const float *value, int count) -> void
     {
         bind();
-		glUniform1fv(get_uniform_location(name), count, value);
-		unbind();
+        glUniform1fv(get_uniform_location(name), count, value);
+        unbind();
     }
 
     auto c_shader::set_uniform_1iv(const std::string &name, const int *value, int count) -> void
     {
         bind();
-		glUniform1iv(get_uniform_location(name), count, value);
-		unbind();
+        glUniform1iv(get_uniform_location(name), count, value);
+        unbind();
     }
 
     auto c_shader::set_uniform_2f(const std::string &name, const glm::vec2 &value) -> void
     {
         bind();
-		glUniform2f(get_uniform_location(name), value.x, value.y);
-		unbind();
+        glUniform2f(get_uniform_location(name), value.x, value.y);
+        unbind();
     }
 
     auto c_shader::set_uniform_3f(const std::string &name, const glm::vec3 &value) -> void
     {
         bind();
-		glUniform3f(get_uniform_location(name), value.x, value.y, value.z);
-		unbind();
+        glUniform3f(get_uniform_location(name), value.x, value.y, value.z);
+        unbind();
     }
 
     auto c_shader::set_uniform_4f(const std::string &name, const glm::vec4 &value) -> void
     {
         bind();
-		glUniform4f(get_uniform_location(name), value.x, value.y, value.z, value.w);
-		unbind();
+        glUniform4f(get_uniform_location(name), value.x, value.y, value.z, value.w);
+        unbind();
     }
 
     auto c_shader::set_uniform_mat4f(const std::string &name, const glm::mat4 &value) -> void
     {
         bind();
-		glUniformMatrix4fv(get_uniform_location(name), 1, GL_FALSE, glm::value_ptr(value));
-		unbind();
-        }
+        glUniformMatrix4fv(get_uniform_location(name), 1, GL_FALSE, glm::gtc::value_ptr(value));
+        unbind();
+    }
 } // namespace opengl
