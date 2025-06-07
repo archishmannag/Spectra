@@ -11,7 +11,7 @@ export namespace opengl
     class c_index_buffer
     {
     public:
-        c_index_buffer(const std::vector<unsigned int> &data, unsigned int count);
+        c_index_buffer(const std::vector<unsigned int> &data, unsigned int count, GLenum usage = GL_STATIC_DRAW);
         ~c_index_buffer();
 
         auto bind() const -> void;
@@ -22,26 +22,41 @@ export namespace opengl
             return m_count;
         }
 
+        auto update_buffer(const std::vector<unsigned int> &data, unsigned int count) -> void;
+
     private:
         unsigned int m_renderer_id{};
         unsigned int m_count{};
+        GLenum m_usage;
     };
 } // namespace opengl
 
 // Implementation
 namespace opengl
 {
-    c_index_buffer::c_index_buffer(const std::vector<unsigned int> &data, unsigned int count)
-        : m_count(count)
+    c_index_buffer::c_index_buffer(const std::vector<unsigned int> &data, unsigned int count, GLenum usage)
+        : m_count(count),
+          m_usage(usage)
     {
         glGenBuffers(1, &m_renderer_id);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_renderer_id);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data.data(), GL_STATIC_DRAW);
+        if (count > 0)
+        {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_renderer_id);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data.data(), m_usage);
+        }
     }
 
     c_index_buffer::~c_index_buffer()
     {
         glDeleteBuffers(1, &m_renderer_id);
+    }
+
+    auto c_index_buffer::update_buffer(const std::vector<unsigned int> &data, unsigned int count) -> void
+    {
+        bind();
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data.data(), GL_STATIC_DRAW);
+        m_count = count;
+        unbind();
     }
 
     auto c_index_buffer::bind() const -> void
