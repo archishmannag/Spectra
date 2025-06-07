@@ -6,7 +6,7 @@ module;
 #include <stdexcept>
 #include <valarray>
 #include <vector>
-export module fft;
+export module math:fft;
 
 using namespace std::literals::complex_literals;
 
