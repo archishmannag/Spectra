@@ -43,3 +43,6 @@ conan/
 
 # Presets
 *.json
+
+# Cache
+.cache/
