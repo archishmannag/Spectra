@@ -1,6 +1,7 @@
 add_subdirectory(audio)
 add_subdirectory(gl)
 add_subdirectory(math)
+add_subdirectory(gui)
 
 add_executable(${PROJECT_NAME})
 
@@ -25,6 +26,9 @@ target_sources(${PROJECT_NAME}
     FILE_SET audio_modules TYPE CXX_MODULES
     FILES
         ${AUDIO_MODULES}
+    FILE_SET gui_modules TYPE CXX_MODULES
+    FILES
+        ${GUI_MODULES}
 )
 
 target_link_libraries(${PROJECT_NAME}
