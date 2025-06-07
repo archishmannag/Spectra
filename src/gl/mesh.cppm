@@ -33,6 +33,8 @@ export namespace opengl
         std::vector<unsigned int> m_indices;
         opengl::c_buffer_layout m_layout;
 
+        e_render_primitive m_primitive_type = e_render_primitive::triangles;
+
     public:
         c_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices)
             : m_vertices(std::move(vertices)),
@@ -51,6 +53,14 @@ export namespace opengl
          */
         void update_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices);
         void draw(const c_renderer &renderer, const c_shader &shader) const;
+        void set_primitive_type(e_render_primitive type)
+        {
+            m_primitive_type = type;
+        }
+        [[nodiscard]] e_render_primitive get_primitive_type() const
+        {
+            return m_primitive_type;
+        }
     };
 } // namespace opengl
 
@@ -82,6 +92,6 @@ namespace opengl
     void c_mesh::draw(const c_renderer &renderer, const c_shader &shader) const
     {
         renderer.clear();
-        renderer.draw(*m_vertex_array, *m_vertex_buffer, *m_index_buffer, shader);
+        renderer.draw(*m_vertex_array, *m_vertex_buffer, *m_index_buffer, shader, m_primitive_type);
     }
 } // namespace opengl

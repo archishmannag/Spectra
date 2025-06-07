@@ -11,29 +11,56 @@ import :vertex_buffer;
 
 export namespace opengl
 {
+    enum class e_render_primitive
+    {
+        triangles = GL_TRIANGLES,
+        triangle_strip = GL_TRIANGLE_STRIP,
+        triangle_fan = GL_TRIANGLE_FAN,
+        lines = GL_LINES,
+        line_strip = GL_LINE_STRIP,
+        line_loop = GL_LINE_LOOP,
+        points = GL_POINTS
+    };
+
     class c_renderer
     {
     public:
-        auto draw(const c_vertex_array &varr, const c_vertex_buffer &vbuff, const c_index_buffer &ibuff, const c_shader &shader) const -> void;
+        auto draw(
+            const c_vertex_array &varr,
+            const c_vertex_buffer &vbuff,
+            const c_index_buffer &ibuff,
+            const c_shader &shader,
+            e_render_primitive primitive = e_render_primitive::triangles) const -> void;
         auto clear() const -> void;
+        auto clear_color(float red, float green, float blue, float alpha = 1.0F) const -> void;
     };
 } // namespace opengl
 
 // Implementation
 namespace opengl
 {
-    auto c_renderer::draw(const c_vertex_array &varr, const c_vertex_buffer &vbuff, const c_index_buffer &ibuff, const c_shader &shader) const -> void
+    auto c_renderer::draw(
+        const c_vertex_array &varr,
+        const c_vertex_buffer &vbuff,
+        const c_index_buffer &ibuff,
+        const c_shader &shader,
+        e_render_primitive primitive) const -> void
     {
         shader.bind();
         varr.bind();
         vbuff.bind();
         ibuff.bind();
 
-        glDrawElements(GL_TRIANGLES, static_cast<int>(ibuff.get_count()), GL_UNSIGNED_INT, nullptr);
+        glDrawElements(static_cast<GLenum>(primitive), static_cast<int>(ibuff.get_count()), GL_UNSIGNED_INT, nullptr);
     }
 
     auto c_renderer::clear() const -> void
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+
+    auto c_renderer::clear_color(float red, float green, float blue, float alpha) const -> void
+    {
+        glClearColor(red, green, blue, alpha);
     }
 } // namespace opengl
