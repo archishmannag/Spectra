@@ -12,8 +12,10 @@ find_package(OpenGL REQUIRED)
 find_package(SFML 2 REQUIRED COMPONENTS audio window system)
 find_package(GLEW REQUIRED)
 find_package(glm REQUIRED)
+find_package(freetype REQUIRED)
 
 add_compile_options(
+    -DSOURCE_DIR="${CMAKE_SOURCE_DIR}"
     -Wall
     -Wextra
     -Wpedantic
