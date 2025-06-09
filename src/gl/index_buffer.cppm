@@ -25,7 +25,7 @@ export namespace opengl
         auto update_buffer(const std::vector<unsigned int> &data, unsigned int count) -> void;
 
     private:
-        unsigned int m_renderer_id{};
+        unsigned int m_ibo_id{};
         unsigned int m_count{};
         GLenum m_usage;
     };
@@ -38,17 +38,24 @@ namespace opengl
         : m_count(count),
           m_usage(usage)
     {
-        glGenBuffers(1, &m_renderer_id);
+        glGenBuffers(1, &m_ibo_id);
         if (count > 0)
         {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_renderer_id);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data.data(), m_usage);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo_id);
+            if (data.empty())
+            {
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), nullptr, m_usage);
+            }
+            else
+            {
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data.data(), m_usage);
+            }
         }
     }
 
     c_index_buffer::~c_index_buffer()
     {
-        glDeleteBuffers(1, &m_renderer_id);
+        glDeleteBuffers(1, &m_ibo_id);
     }
 
     auto c_index_buffer::update_buffer(const std::vector<unsigned int> &data, unsigned int count) -> void
@@ -61,7 +68,7 @@ namespace opengl
 
     auto c_index_buffer::bind() const -> void
     {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_renderer_id);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo_id);
     }
 
     auto c_index_buffer::unbind() -> void

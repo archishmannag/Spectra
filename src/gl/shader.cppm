@@ -134,7 +134,7 @@ export namespace opengl
         auto set_uniform_mat4f(const std::string &name, const glm::mat4 &value) -> void;
 
     private:
-        unsigned int m_renderer_id{};
+        unsigned int m_shader_id{};
         std::unordered_map<std::string, int> m_uniform_location_cache;
 
         [[nodiscard]] auto get_uniform_location(const std::string &name) -> int;
@@ -147,17 +147,17 @@ namespace opengl
     c_shader::c_shader(const std::filesystem::path &path)
     {
         s_shader_program_source source = parse_file(path);
-        m_renderer_id = create_shader(source.vertex_source, source.fragment_source);
+        m_shader_id = create_shader(source.vertex_source, source.fragment_source);
     }
 
     c_shader::~c_shader()
     {
-        glDeleteProgram(m_renderer_id);
+        glDeleteProgram(m_shader_id);
     }
 
     auto c_shader::bind() const -> void
     {
-        glUseProgram(m_renderer_id);
+        glUseProgram(m_shader_id);
     }
 
     auto c_shader::unbind() const -> void
@@ -171,7 +171,7 @@ namespace opengl
         {
             return m_uniform_location_cache[name];
         }
-        int location = glGetUniformLocation(m_renderer_id, name.c_str());
+        int location = glGetUniformLocation(m_shader_id, name.c_str());
         if (location == -1)
         {
             std::println("Warning: uniform '{}' doesn't exist!", name);

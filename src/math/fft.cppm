@@ -24,7 +24,7 @@ namespace math
     template <std::floating_point T = float>
     auto fft(std::valarray<std::complex<T>> &input) -> void
     {
-        auto constexpr pi_val = std::numbers::pi_v<T>;
+        static constexpr auto pi_val = std::numbers::pi_v<T>;
         T constexpr real = 1.0;
         const size_t size = input.size();
         if (size <= 1)
@@ -41,12 +41,12 @@ namespace math
         fft(odd);
 
         // combine
-        for (size_t k = 0; k < size / 2; ++k)
+        for (std::size_t k = 0; k < size / 2; ++k)
         {
             // Polar rotates the vector, product scales it.
-            std::complex<T> vector = std::operator*(std::polar(real, -2 * pi_val * k / size), odd[k]);
-            input[k] = std::operator+(even[k], vector);
-            input[k + (size / 2)] = std::operator-(even[k], vector);
+            std::complex<T> vector = std::polar(real, -2 * pi_val * k / size) * odd[k];
+            input[k] = even[k] + vector;
+            input[k + (size / 2)] = even[k] - vector;
         }
     }
 

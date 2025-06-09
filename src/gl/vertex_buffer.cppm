@@ -20,7 +20,7 @@ export namespace opengl
         auto unbind() const -> void;
 
     private:
-        unsigned int m_renderer_id{};
+        unsigned int m_vbo_id{};
         std::size_t m_size;
         GLenum m_usage;
     };
@@ -34,17 +34,24 @@ namespace opengl
         : m_size(size),
           m_usage(usage)
     {
-        glGenBuffers(1, &m_renderer_id);
+        glGenBuffers(1, &m_vbo_id);
         if (size > 0)
         {
-            glBindBuffer(GL_ARRAY_BUFFER, m_renderer_id);
-            glBufferData(GL_ARRAY_BUFFER, size, data.data(), usage);
+            glBindBuffer(GL_ARRAY_BUFFER, m_vbo_id);
+            if (data.empty())
+            {
+                glBufferData(GL_ARRAY_BUFFER, size, nullptr, usage);
+            }
+            else
+            {
+                glBufferData(GL_ARRAY_BUFFER, size, data.data(), usage);
+            }
         }
     }
 
     c_vertex_buffer::~c_vertex_buffer()
     {
-        glDeleteBuffers(1, &m_renderer_id);
+        glDeleteBuffers(1, &m_vbo_id);
     }
 
     template <typename T>
@@ -65,7 +72,7 @@ namespace opengl
 
     auto c_vertex_buffer::bind() const -> void
     {
-        glBindBuffer(GL_ARRAY_BUFFER, m_renderer_id);
+        glBindBuffer(GL_ARRAY_BUFFER, m_vbo_id);
     }
 
     auto c_vertex_buffer::unbind() const -> void

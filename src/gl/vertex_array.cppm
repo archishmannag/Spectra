@@ -24,7 +24,7 @@ export namespace opengl
         auto unbind() const -> void;
 
     private:
-        unsigned int m_renderer_id{};
+        unsigned int m_vao_id{};
     };
 } // namespace opengl
 
@@ -33,12 +33,12 @@ namespace opengl
 {
     c_vertex_array::c_vertex_array()
     {
-        glGenVertexArrays(1, &m_renderer_id);
+        glGenVertexArrays(1, &m_vao_id);
     }
 
     c_vertex_array::~c_vertex_array()
     {
-        glDeleteVertexArrays(1, &m_renderer_id);
+        glDeleteVertexArrays(1, &m_vao_id);
     }
 
     auto c_vertex_array::add_buffer(const c_vertex_buffer &vbuff, const c_buffer_layout &layout) const -> void
@@ -59,7 +59,7 @@ namespace opengl
 
     auto c_vertex_array::bind() const -> void
     {
-        glBindVertexArray(m_renderer_id);
+        glBindVertexArray(m_vao_id);
     }
 
     auto c_vertex_array::unbind() const -> void
