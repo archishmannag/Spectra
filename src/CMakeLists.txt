@@ -39,4 +39,5 @@ target_link_libraries(${PROJECT_NAME}
         sfml-audio
         sfml-window
         sfml-system
+        Freetype::Freetype
 )

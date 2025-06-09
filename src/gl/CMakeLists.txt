@@ -8,5 +8,6 @@ set(OPENGL_MODULES
     ${CMAKE_CURRENT_SOURCE_DIR}/buffer_layout.cppm
     ${CMAKE_CURRENT_SOURCE_DIR}/shader.cppm
     ${CMAKE_CURRENT_SOURCE_DIR}/error.cppm
+    ${CMAKE_CURRENT_SOURCE_DIR}/text.cppm
     PARENT_SCOPE
 )
