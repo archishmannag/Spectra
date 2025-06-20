@@ -4,8 +4,9 @@ module;
 #include <algorithm>
 #include <cstddef>
 #include <filesystem>
+#include <string>
 #include <vector>
-export module music;
+export module music:track;
 
 export namespace music
 {
@@ -17,7 +18,7 @@ export namespace music
         void play();
         void pause();
         bool is_playing() const;
-
+        std::string get_filename() const;
         std::vector<float> get_samples(int fps = 60);
 
     private:
@@ -25,6 +26,7 @@ export namespace music
         sf::Sound m_sound;
         unsigned int m_sample_rate;
         unsigned int m_channels;
+        std::string m_filename;
     };
 } // namespace music
 
@@ -37,6 +39,7 @@ namespace music
 
         m_sample_rate = m_buffer.getSampleRate();
         m_channels = m_buffer.getChannelCount();
+        m_filename = path.filename();
     }
 
     void c_track::play()
@@ -52,6 +55,11 @@ namespace music
     bool c_track::is_playing() const
     {
         return m_sound.getStatus() == sf::Sound::Playing;
+    }
+
+    std::string c_track::get_filename() const
+    {
+        return m_filename;
     }
 
     std::vector<float> c_track::get_samples(int fps)
