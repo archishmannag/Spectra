@@ -41,8 +41,9 @@ bin/
 # Conan
 conan/
 
-# Presets
-*.json
+# Presets and compile commands
+CMakeUserPresets.json
+compile_commands.json
 
 # Cache
 .cache/

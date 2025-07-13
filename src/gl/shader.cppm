@@ -9,7 +9,7 @@ module;
 #include <unordered_map>
 export module opengl:shader;
 
-export import glm;
+import glm;
 
 namespace
 {
