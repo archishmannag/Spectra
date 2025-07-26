@@ -44,21 +44,21 @@ export namespace opengl
         template <>
         auto push<float>(unsigned int count) -> void
         {
-            m_elements.push_back({ GL_FLOAT, count, GL_FALSE });
+            m_elements.emplace_back(GL_FLOAT, count, GL_FALSE);
             m_stride += count * s_vertex_buffer_element::get_size_of_type(GL_FLOAT);
         }
 
         template <>
         auto push<unsigned int>(unsigned int count) -> void
         {
-            m_elements.push_back({ GL_UNSIGNED_INT, count, GL_FALSE });
+            m_elements.emplace_back(GL_UNSIGNED_INT, count, GL_FALSE);
             m_stride += count * s_vertex_buffer_element::get_size_of_type(GL_UNSIGNED_INT);
         }
 
         template <>
         auto push<unsigned char>(unsigned int count) -> void
         {
-            m_elements.push_back({ GL_UNSIGNED_BYTE, count, GL_TRUE });
+            m_elements.emplace_back(GL_UNSIGNED_BYTE, count, GL_TRUE);
             m_stride += count * s_vertex_buffer_element::get_size_of_type(GL_UNSIGNED_BYTE);
         }
 
