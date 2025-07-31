@@ -9,6 +9,8 @@ class AudioVisualiser(ConanFile):
     def requirements(self):
         self.requires("freetype/2.13.2")
         self.requires("sfml/2.6.2")
+        self.requires("miniaudio/0.11.21")
+        self.requires("libsndfile/1.2.2")
         self.requires("glew/2.2.0")
         self.requires("glm/1.0.1")
         self.requires("opengl/system")
