@@ -5,11 +5,14 @@ module;
 
 #include FT_FREETYPE_H
 
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <print>
 #include <string>
+#include <vector>
 
 export module opengl:text;
 
@@ -30,6 +33,15 @@ namespace
         unsigned int advance;    // Horizontal offset to advance to next glyph
     };
 
+    struct s_text_draw_data
+    {
+        std::string text; // The text to render
+        float x;          // X position to start rendering
+        float y;          // Y position to start rendering
+        float scale;      // Scale factor for the text
+        glm::vec3 color;  // Color of the text
+    };
+
 } // namespace
 
 export namespace opengl
@@ -38,8 +50,10 @@ export namespace opengl
     class c_text_renderer
     {
     private:
-        std::map<unsigned char, s_character> m_character_map; // Map of character to character map
-        glm::mat4 m_projection_matrix{};
+        std::mutex m_mutex;                                   // Mutex for thread safety
+        std::vector<s_text_draw_data> m_text_draw_queue;      // Queue of text draw data
+        std::map<std::uint64_t, s_character> m_character_map; // Map of character to character map
+        glm::mat4 m_projection_matrix{};                      // Projection matrix for text rendering
 
         std::unique_ptr<c_vertex_array> m_vao;
         std::unique_ptr<c_vertex_buffer> m_vbo;
@@ -49,10 +63,16 @@ export namespace opengl
         c_text_renderer() = default;
         ~c_text_renderer() = default;
 
+        /**
+         * Initialize text renderer with the given width and height.
+         * @param width Width of the rendering area
+         * @param height Height of the rendering area
+         */
         void init(int width, int height);
-        void load_font(const std::string &font_path, unsigned int font_size);
-        void render_text(const std::string &text, float x, float y, float scale, const glm::vec3 &color);
+        void load_font(const std::filesystem::path &font_path, unsigned int font_size);
         void resize(int width, int height);
+        void submit(const std::string &text, float x_pos, float y_pos, float scale, const glm::vec3 &color);
+        void draw_texts();
 
         // Disable copy and move semantics
         c_text_renderer(const c_text_renderer &) = delete;
@@ -85,19 +105,19 @@ namespace opengl
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
 
-    void c_text_renderer::load_font(const std::string &font_path, unsigned int font_size)
+    void c_text_renderer::load_font(const std::filesystem::path &font_path, unsigned int font_size)
     {
-        FT_Library ft{};
-        if (FT_Init_FreeType(&ft))
+        FT_Library ft_lib{};
+        if (FT_Init_FreeType(&ft_lib))
         {
             std::println(std::cerr, "Could not initialize FreeType library");
             return;
         }
 
         FT_Face face{};
-        if (FT_New_Face(ft, font_path.c_str(), 0, &face))
+        if (FT_New_Face(ft_lib, font_path.c_str(), 0, &face))
         {
-            std::println(std::cerr, "Could not load font: {}", font_path);
+            std::println(std::cerr, "Could not load font: {}", font_path.c_str());
             return;
         }
 
@@ -105,11 +125,14 @@ namespace opengl
 
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Disable byte-alignment restriction
 
-        for (unsigned char c = 0; c < 128; ++c)
+        // Load all unicode characters
+        std::uint32_t glyph_index{};
+        std::uint64_t charcode = FT_Get_First_Char(face, &glyph_index);
+        while (glyph_index)
         {
-            if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+            if (FT_Load_Char(face, charcode, FT_LOAD_RENDER))
             {
-                std::println(std::cerr, "Could not load character '{}'", c);
+                std::println(std::cerr, "Could not load character '{}'", charcode);
                 continue;
             }
 
@@ -123,81 +146,17 @@ namespace opengl
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-            s_character character = {
+            m_character_map[charcode] = {
                 .texture_id = texture_id,
                 .size = glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
                 .bearing = glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
                 .advance = static_cast<unsigned int>(face->glyph->advance.x)
             };
-            m_character_map[c] = character;
+            charcode = FT_Get_Next_Char(face, charcode, &glyph_index);
         }
 
         FT_Done_Face(face);
-        FT_Done_FreeType(ft);
-    }
-
-    void c_text_renderer::render_text(const std::string &text, float x, float y, float scale, const glm::vec3 &color)
-    {
-        if (text.empty())
-        {
-            return;
-        }
-
-        m_shader->set_uniform_3f("textColor", color);
-        m_shader->bind();
-
-        glActiveTexture(GL_TEXTURE0);
-        m_vao->bind();
-
-        for (const char ch : text)
-        {
-            if (m_character_map.find(ch) == m_character_map.end())
-            {
-                std::println(std::cerr, "Character '{}' not found in character map", ch);
-                continue;
-            }
-
-            s_character character = m_character_map[ch];
-            float xpos = x + character.bearing.x * scale;
-            float ypos = y - (character.size.y - character.bearing.y) * scale;
-            float w = character.size.x * scale;
-            float h = character.size.y * scale;
-
-            // Only render if the character has dimensions
-            if (w <= 0 || h <= 0)
-            {
-                x += (character.advance >> 6) * scale; // Still advance cursor
-                continue;
-            }
-
-            // clang-format off
-            // Update VBO for each character
-            // Remember that Gl's co-ordinate has y-axis increasing bottom to top, but texture coordinates have y-axis increasing top to bottom, so we flip texture's y-coordinate (0->1, 1->0)
-            std::vector<float> vertices = {
-                xpos,     ypos,     0.0F, 1.0F,
-                xpos,     ypos + h, 0.0F, 0.0F,
-                xpos + w, ypos + h, 1.0F, 0.0F,
-                
-                xpos + w, ypos,     1.0F, 1.0F,
-                xpos + w, ypos + h, 1.0F, 0.0F, 
-                xpos,    ypos,      0.0F, 1.0F
-            };
-            // clang-format on
-
-            glBindTexture(GL_TEXTURE_2D, character.texture_id);
-            m_vbo->update_buffer(vertices, 0, vertices.size() * sizeof(float));
-
-            // Draw
-            m_vbo->bind();
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-
-            // Advance cursor for next glyph
-            x += (character.advance >> 6) * scale;
-        }
-
-        m_vao->unbind();
-        glBindTexture(GL_TEXTURE_2D, 0);
-        m_shader->unbind();
+        FT_Done_FreeType(ft_lib);
     }
 
     void c_text_renderer::resize(int width, int height)
@@ -205,4 +164,84 @@ namespace opengl
         m_projection_matrix = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height), -1.F, 1.F);
         m_shader->set_uniform_mat4f("projection", m_projection_matrix);
     }
+
+    void c_text_renderer::submit(const std::string &text, float x_pos, float y_pos, float scale, const glm::vec3 &color)
+    {
+        if (text.empty())
+        {
+            return;
+        }
+        std::lock_guard<std::mutex> lock(m_mutex); // Ensure thread safety
+        m_text_draw_queue.emplace_back(text, x_pos, y_pos, scale, color);
+    }
+
+    void c_text_renderer::draw_texts()
+    {
+
+        if (m_text_draw_queue.empty())
+        {
+            return;
+        }
+
+        std::lock_guard<std::mutex> lock(m_mutex); // Ensure thread safety
+        glActiveTexture(GL_TEXTURE0);
+        m_vao->bind();
+        for (auto &[text, x, y, scale, color] : m_text_draw_queue)
+        {
+            m_shader->set_uniform_3f("textColor", color);
+            m_shader->bind();
+
+            for (const char character : text)
+            {
+                if (m_character_map.find(character) == m_character_map.end())
+                {
+                    std::println(std::cerr, "Character '{}' not found in character map", character);
+                    continue;
+                }
+
+                s_character character_struct = m_character_map[character];
+                float xpos = x + character_struct.bearing.x * scale;
+                float ypos = y - (character_struct.size.y - character_struct.bearing.y) * scale;
+                float w = character_struct.size.x * scale;
+                float h = character_struct.size.y * scale;
+
+                // Only render if the character has dimensions
+                if (w <= 0 || h <= 0)
+                {
+                    x += (character_struct.advance >> 6) * scale; // Still advance cursor
+                    continue;
+                }
+
+                // clang-format off
+                // Update VBO for each character
+                // Remember that Gl's co-ordinate has y-axis increasing bottom to top, but texture coordinates have y-axis increasing top to bottom.
+                // So we flip texture's y-coordinate (0->1, 1->0)
+                std::vector<float> vertices{
+                    xpos,     ypos,     0.0F, 1.0F,
+                    xpos,     ypos + h, 0.0F, 0.0F,
+                    xpos + w, ypos + h, 1.0F, 0.0F,
+                    
+                    xpos + w, ypos,     1.0F, 1.0F,
+                    xpos + w, ypos + h, 1.0F, 0.0F, 
+                    xpos,    ypos,      0.0F, 1.0F
+                };
+                // clang-format on
+
+                glBindTexture(GL_TEXTURE_2D, character_struct.texture_id);
+                m_vbo->update_buffer(vertices, 0, vertices.size() * sizeof(float));
+
+                // Draw
+                m_vbo->bind();
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+
+                // Advance cursor for next glyph
+                x += (character_struct.advance >> 6) * scale;
+            }
+        }
+        m_vao->unbind();
+        glBindTexture(GL_TEXTURE_2D, 0);
+        m_shader->unbind();
+        m_text_draw_queue.clear();
+    }
+
 } // namespace opengl
