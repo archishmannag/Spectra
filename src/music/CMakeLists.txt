@@ -1,5 +1,6 @@
 set(MUSIC_MODULES
     ${CMAKE_CURRENT_SOURCE_DIR}/track.cppm
     ${CMAKE_CURRENT_SOURCE_DIR}/music.cppm
+    ${CMAKE_CURRENT_SOURCE_DIR}/audio.cppm
     PARENT_SCOPE
 )

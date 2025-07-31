@@ -1,4 +1,4 @@
-add_subdirectory(audio)
+add_subdirectory(music)
 add_subdirectory(gl)
 add_subdirectory(math)
 add_subdirectory(gui)
@@ -23,9 +23,9 @@ target_sources(${PROJECT_NAME}
     FILES
         ${MATH_MODULES}
     PRIVATE
-    FILE_SET audio_modules TYPE CXX_MODULES
+    FILE_SET music_modules TYPE CXX_MODULES
     FILES
-        ${AUDIO_MODULES}
+        ${MUSIC_MODULES}
     FILE_SET gui_modules TYPE CXX_MODULES
     FILES
         ${GUI_MODULES}
@@ -33,11 +33,13 @@ target_sources(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
-        OpenGL::GL
+        Freetype::Freetype
         GLEW::GLEW
         glm::glm
         sfml-audio
         sfml-window
         sfml-system
-        Freetype::Freetype
+        SndFile::sndfile
+        miniaudio::miniaudio
+        OpenGL::GL
 )
