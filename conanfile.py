@@ -7,7 +7,7 @@ class AudioVisualiser(ConanFile):
     generators = "CMakeDeps"
 
     def requirements(self):
-        self.requires("freetype/2.13.2")
+        self.requires("freetype/2.13.3")
         self.requires("glfw/3.4")
         self.requires("miniaudio/0.11.21")
         self.requires("libsndfile/1.2.2")
