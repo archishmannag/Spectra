@@ -15,6 +15,9 @@ class AudioVisualiser(ConanFile):
         self.requires("glm/1.0.1")
         self.requires("opengl/system")
 
+    def configure(self):
+        self.options["miniaudio/*"].header_only = False
+
     def layout(self):
         cmake_layout(self)
         self.folders.build = "build"
