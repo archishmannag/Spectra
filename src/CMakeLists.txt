@@ -7,7 +7,7 @@ add_executable(${PROJECT_NAME})
 
 target_sources(${PROJECT_NAME}
     PRIVATE
-        test.cpp
+        main.cpp
     PRIVATE
     FILE_SET opengl_modules TYPE CXX_MODULES
     FILES
@@ -34,12 +34,11 @@ target_sources(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         Freetype::Freetype
+        glfw
         GLEW::GLEW
         glm::glm
-        sfml-audio
-        sfml-window
-        sfml-system
         SndFile::sndfile
         miniaudio::miniaudio
         OpenGL::GL
+        stdc++exp # Link with the experimental C++ library for std::stacktrace on libstdc++ (Will remove for libcxx)
 )
