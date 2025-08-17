@@ -1,10 +1,10 @@
 module;
-
 #include <GL/glew.h>
 
 #include <vector>
-
 export module opengl:index_buffer;
+
+import utility;
 
 export namespace opengl
 {
@@ -38,19 +38,23 @@ namespace opengl
         : m_count(count),
           m_usage(usage)
     {
-        glGenBuffers(1, &m_ibo_id);
-        if (count > 0)
+        auto init = [this, &data]()
         {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo_id);
-            if (data.empty())
+            glGenBuffers(1, &m_ibo_id);
+            if (m_count > 0)
             {
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), nullptr, m_usage);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo_id);
+                if (data.empty())
+                {
+                    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_count * sizeof(unsigned int), nullptr, m_usage);
+                }
+                else
+                {
+                    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_count * sizeof(unsigned int), data.data(), m_usage);
+                }
             }
-            else
-            {
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), data.data(), m_usage);
-            }
-        }
+        };
+        utility::c_notifier::subscribe(init);
     }
 
     c_index_buffer::~c_index_buffer()

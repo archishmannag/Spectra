@@ -7,8 +7,10 @@ module;
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <utility>
 export module opengl:shader;
 
+import utility;
 import glm;
 
 namespace
@@ -34,6 +36,7 @@ namespace
             VERTEX = 0,
             FRAGMENT = 1
         };
+        using enum e_shader_type;
 
         std::string line;
         std::array<std::ostringstream, 2> streams;
@@ -44,11 +47,11 @@ namespace
             {
                 if (line.find("vertex") != std::string::npos)
                 {
-                    type = e_shader_type::VERTEX;
+                    type = VERTEX;
                 }
                 else if (line.find("fragment") != std::string::npos)
                 {
-                    type = e_shader_type::FRAGMENT;
+                    type = FRAGMENT;
                 }
             }
             else
@@ -63,41 +66,41 @@ namespace
     auto compile_shader(unsigned int type, const std::string &source) -> unsigned int
     {
         int result{};
-        unsigned int id = glCreateShader(type);
+        unsigned int shader_id = glCreateShader(type);
         const char *src = source.c_str();
-        glShaderSource(id, 1, &src, nullptr);
-        glCompileShader(id);
+        glShaderSource(shader_id, 1, &src, nullptr);
+        glCompileShader(shader_id);
 
-        glGetShaderiv(id, GL_COMPILE_STATUS, &result);
+        glGetShaderiv(shader_id, GL_COMPILE_STATUS, &result);
         if (result == GL_FALSE)
         {
             int length{};
-            glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-            char *message = static_cast<char *>(alloca(length * sizeof(char)));
-            glGetShaderInfoLog(id, length, &length, message);
+            glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &length);
+            char *message = static_cast<char *>(alloca(static_cast<unsigned long>(length) * sizeof(char)));
+            glGetShaderInfoLog(shader_id, length, &length, message);
             std::println("Failed to compile {} shader\n"
                          "Error: {}",
                          type == GL_VERTEX_SHADER ? "vertex" : "fragment", message);
-            glDeleteShader(id);
+            glDeleteShader(shader_id);
             return 0;
         }
 
-        return id;
+        return shader_id;
     }
 
     auto create_shader(const std::string &vertex_shader, const std::string &fragment_shader) -> unsigned int
     {
         unsigned program = glCreateProgram();
-        unsigned vs = compile_shader(GL_VERTEX_SHADER, vertex_shader);
-        unsigned fs = compile_shader(GL_FRAGMENT_SHADER, fragment_shader);
+        unsigned vertex_shader_compiled = compile_shader(GL_VERTEX_SHADER, vertex_shader);
+        unsigned fragment_shader_compiled = compile_shader(GL_FRAGMENT_SHADER, fragment_shader);
 
-        glAttachShader(program, vs);
-        glAttachShader(program, fs);
+        glAttachShader(program, vertex_shader_compiled);
+        glAttachShader(program, fragment_shader_compiled);
         glLinkProgram(program);
         glValidateProgram(program);
 
-        glDeleteShader(vs);
-        glDeleteShader(fs);
+        glDeleteShader(vertex_shader_compiled);
+        glDeleteShader(fragment_shader_compiled);
 
         return program;
     }
@@ -115,7 +118,7 @@ export namespace opengl
          * @param shader_path - The path to the shader file
          * @note The shader file should contain both the vertex and fragment shaders
          */
-        explicit c_shader(const std::filesystem::path &shader_path);
+        explicit c_shader(std::filesystem::path shader_source_file);
         ~c_shader();
 
         auto bind() const -> void;
@@ -144,10 +147,14 @@ export namespace opengl
 // Implementation
 namespace opengl
 {
-    c_shader::c_shader(const std::filesystem::path &path)
+    c_shader::c_shader(std::filesystem::path shader_source_file)
     {
-        s_shader_program_source source = parse_file(path);
-        m_shader_id = create_shader(source.vertex_source, source.fragment_source);
+        auto init = [this, path = std::move(shader_source_file)]()
+        {
+            s_shader_program_source source = parse_file(path);
+            m_shader_id = create_shader(source.vertex_source, source.fragment_source);
+        };
+        utility::c_notifier::subscribe(init);
     }
 
     c_shader::~c_shader()
@@ -167,7 +174,7 @@ namespace opengl
 
     auto c_shader::get_uniform_location(const std::string &name) -> int
     {
-        if (m_uniform_location_cache.find(name) != m_uniform_location_cache.end())
+        if (m_uniform_location_cache.contains(name))
         {
             return m_uniform_location_cache[name];
         }

@@ -4,24 +4,25 @@ module;
 #include <vector>
 export module opengl:vertex_buffer;
 
+import utility;
+
 export namespace opengl
 {
+    template <typename T>
     class c_vertex_buffer
     {
     public:
-        template <typename T>
-        c_vertex_buffer(const std::vector<T> &data, unsigned int size, unsigned int usage = GL_STATIC_DRAW);
+        c_vertex_buffer(const std::vector<T> &data, unsigned int count, unsigned int usage = GL_STATIC_DRAW);
         ~c_vertex_buffer();
 
-        template <typename T>
-        auto update_buffer(const std::vector<T> &data, unsigned int offset, unsigned int size) -> void;
+        auto update_buffer(const std::vector<T> &data, unsigned int offset, unsigned int count) -> void;
 
         auto bind() const -> void;
         auto unbind() const -> void;
 
     private:
         unsigned int m_vbo_id{};
-        std::size_t m_size;
+        std::size_t m_count;
         GLenum m_usage;
     };
 } // namespace opengl
@@ -30,52 +31,59 @@ export namespace opengl
 namespace opengl
 {
     template <typename T>
-    c_vertex_buffer::c_vertex_buffer(const std::vector<T> &data, unsigned int size, GLenum usage)
-        : m_size(size),
+    c_vertex_buffer<T>::c_vertex_buffer(const std::vector<T> &data, unsigned int count, GLenum usage)
+        : m_count(count),
           m_usage(usage)
     {
-        glGenBuffers(1, &m_vbo_id);
-        if (size > 0)
+        auto init = [this, &data]()
         {
-            glBindBuffer(GL_ARRAY_BUFFER, m_vbo_id);
-            if (data.empty())
+            glGenBuffers(1, &m_vbo_id);
+            if (m_count > 0)
             {
-                glBufferData(GL_ARRAY_BUFFER, size, nullptr, usage);
+                glBindBuffer(GL_ARRAY_BUFFER, m_vbo_id);
+                if (data.empty())
+                {
+                    glBufferData(GL_ARRAY_BUFFER, m_count * sizeof(T), nullptr, m_usage);
+                }
+                else
+                {
+                    glBufferData(GL_ARRAY_BUFFER, m_count * sizeof(T), data.data(), m_usage);
+                }
             }
-            else
-            {
-                glBufferData(GL_ARRAY_BUFFER, size, data.data(), usage);
-            }
-        }
+        };
+        utility::c_notifier::subscribe(init);
     }
 
-    c_vertex_buffer::~c_vertex_buffer()
+    template <typename T>
+    c_vertex_buffer<T>::~c_vertex_buffer()
     {
         glDeleteBuffers(1, &m_vbo_id);
     }
 
     template <typename T>
-    auto c_vertex_buffer::update_buffer(const std::vector<T> &data, unsigned int offset, unsigned int size) -> void
+    auto c_vertex_buffer<T>::update_buffer(const std::vector<T> &data, unsigned int offset, unsigned int count) -> void
     {
         bind();
-        if (size > m_size)
+        if (count > m_count)
         {
-            m_size = size;
-            glBufferData(GL_ARRAY_BUFFER, size, data.data(), m_usage);
+            m_count = count;
+            glBufferData(GL_ARRAY_BUFFER, count * sizeof(T), data.data(), m_usage);
         }
         else
         {
-            glBufferSubData(GL_ARRAY_BUFFER, offset, size, data.data());
+            glBufferSubData(GL_ARRAY_BUFFER, offset, count * sizeof(T), data.data());
         }
         unbind();
     }
 
-    auto c_vertex_buffer::bind() const -> void
+    template <typename T>
+    auto c_vertex_buffer<T>::bind() const -> void
     {
         glBindBuffer(GL_ARRAY_BUFFER, m_vbo_id);
     }
 
-    auto c_vertex_buffer::unbind() const -> void
+    template <typename T>
+    auto c_vertex_buffer<T>::unbind() const -> void
     {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
