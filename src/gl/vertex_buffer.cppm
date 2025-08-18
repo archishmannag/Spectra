@@ -1,6 +1,7 @@
 module;
 #include <GL/glew.h>
 
+#include <cstddef>
 #include <vector>
 export module opengl:vertex_buffer;
 
@@ -12,10 +13,10 @@ export namespace opengl
     class c_vertex_buffer
     {
     public:
-        c_vertex_buffer(const std::vector<T> &data, unsigned int count, unsigned int usage = GL_STATIC_DRAW);
+        c_vertex_buffer(const std::vector<T> &data, std::size_t count, unsigned int usage = GL_STATIC_DRAW);
         ~c_vertex_buffer();
 
-        auto update_buffer(const std::vector<T> &data, unsigned int offset, unsigned int count) -> void;
+        auto update_buffer(const std::vector<T> &data, std::size_t count, unsigned int offset = 0) -> void;
 
         auto bind() const -> void;
         auto unbind() const -> void;
@@ -31,7 +32,7 @@ export namespace opengl
 namespace opengl
 {
     template <typename T>
-    c_vertex_buffer<T>::c_vertex_buffer(const std::vector<T> &data, unsigned int count, GLenum usage)
+    c_vertex_buffer<T>::c_vertex_buffer(const std::vector<T> &data, std::size_t count, GLenum usage)
         : m_count(count),
           m_usage(usage)
     {
@@ -61,7 +62,7 @@ namespace opengl
     }
 
     template <typename T>
-    auto c_vertex_buffer<T>::update_buffer(const std::vector<T> &data, unsigned int offset, unsigned int count) -> void
+    auto c_vertex_buffer<T>::update_buffer(const std::vector<T> &data, std::size_t count, unsigned int offset) -> void
     {
         bind();
         if (count > m_count)

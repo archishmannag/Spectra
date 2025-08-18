@@ -43,16 +43,10 @@ export namespace opengl
          * @param  vertices New vertex data
          * @param  indices New index data
          */
-        void update_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices);
-        void draw(const c_renderer &renderer, const c_shader &shader) const;
-        void set_primitive_type(e_render_primitive type)
-        {
-            m_primitive_type = type;
-        }
-        [[nodiscard]] e_render_primitive get_primitive_type() const
-        {
-            return m_primitive_type;
-        }
+        auto update_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices) -> void;
+        auto draw(const c_renderer &renderer, const c_shader &shader) const -> void;
+        auto set_primitive_type(e_render_primitive type) -> void;
+        [[nodiscard]] auto get_primitive_type() const -> e_render_primitive;
     };
 } // namespace opengl
 
@@ -75,7 +69,7 @@ namespace opengl
         utility::c_notifier::subscribe(init);
     }
 
-    void c_mesh::update_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices)
+    auto c_mesh::update_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices) -> void
     {
         m_vertices = std::move(vertices);
         m_indices = std::move(indices);
@@ -86,9 +80,18 @@ namespace opengl
         m_vertex_array.add_buffer(m_vertex_buffer, m_layout);
     }
 
-    void c_mesh::draw(const c_renderer &renderer, const c_shader &shader) const
+    auto c_mesh::draw(const c_renderer &renderer, const c_shader &shader) const -> void
     {
         renderer.clear();
         renderer.draw(m_vertex_array, m_vertex_buffer, m_index_buffer, shader, m_primitive_type);
+    }
+
+    auto c_mesh::set_primitive_type(e_render_primitive type) -> void
+    {
+        m_primitive_type = type;
+    }
+    [[nodiscard]] auto c_mesh::get_primitive_type() const -> e_render_primitive
+    {
+        return m_primitive_type;
     }
 } // namespace opengl

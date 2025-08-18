@@ -1,9 +1,7 @@
 module;
-
 #include <GL/glew.h>
 
 #include <vector>
-
 export module opengl:buffer_layout;
 
 export namespace opengl

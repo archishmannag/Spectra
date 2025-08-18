@@ -3,12 +3,11 @@ module;
 
 #include <print>
 #include <string>
-
 export module opengl:error;
 
 export namespace opengl
 {
-    void gl_debug_callback_fn(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei /* length */, const GLchar *msg, const void * /* data */)
+    auto gl_debug_callback_fn(GLenum source, GLenum type, GLuint err_id, GLenum severity, GLsizei /* length */, const GLchar *msg, const void * /* data */) -> void
     {
         std::string i_source;
         std::string i_type;
@@ -101,6 +100,6 @@ export namespace opengl
         }
 
         std::println("{}: {} of {} severity, raised from {}: {}\n",
-                     id, i_type, i_severity, i_source, msg);
+                     err_id, i_type, i_severity, i_source, msg);
     }
 } // namespace opengl

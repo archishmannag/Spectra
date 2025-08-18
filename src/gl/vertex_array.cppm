@@ -57,7 +57,7 @@ namespace opengl
         {
             glEnableVertexAttribArray(index);
             glVertexAttribPointer(index, element.count, element.type, element.normalized, layout.get_stride(), reinterpret_cast<const void *>(offset));
-            offset += element.count * s_vertex_buffer_element::get_size_of_type(element.type);
+            offset += static_cast<std::uint64_t>(element.count) * s_vertex_buffer_element::get_size_of_type(element.type);
         }
         unbind();
     }

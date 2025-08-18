@@ -1,7 +1,5 @@
 module;
-
 #include <GL/glew.h>
-
 export module opengl:renderer;
 
 import :shader;
@@ -11,7 +9,7 @@ import :vertex_buffer;
 
 export namespace opengl
 {
-    enum class e_render_primitive
+    enum class e_render_primitive : std::uint8_t
     {
         triangles = GL_TRIANGLES,
         triangle_strip = GL_TRIANGLE_STRIP,
