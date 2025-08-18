@@ -1,6 +1,7 @@
 add_subdirectory(music)
 add_subdirectory(gl)
 add_subdirectory(math)
+add_subdirectory(utility)
 add_subdirectory(gui)
 
 add_executable(${PROJECT_NAME})
@@ -26,6 +27,10 @@ target_sources(${PROJECT_NAME}
     FILE_SET music_modules TYPE CXX_MODULES
     FILES
         ${MUSIC_MODULES}
+    PRIVATE
+    FILE_SET utility_modules TYPE CXX_MODULES
+    FILES
+        ${UTILITY_MODULES}
     FILE_SET gui_modules TYPE CXX_MODULES
     FILES
         ${GUI_MODULES}
@@ -39,6 +44,7 @@ target_link_libraries(${PROJECT_NAME}
         glm::glm
         SndFile::sndfile
         miniaudio::miniaudio
+        utf8cpp
         OpenGL::GL
         stdc++exp # Link with the experimental C++ library for std::stacktrace on libstdc++ (Will remove for libcxx)
 )
