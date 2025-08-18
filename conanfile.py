@@ -13,6 +13,7 @@ class AudioVisualiser(ConanFile):
         self.requires("libsndfile/1.2.2")
         self.requires("glew/2.2.0")
         self.requires("glm/1.0.1")
+        self.requires("utfcpp/4.0.5")
         self.requires("opengl/system")
 
     def configure(self):

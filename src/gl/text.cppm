@@ -1,6 +1,7 @@
 module;
 #include <GL/glew.h>
 #include <ft2build.h>
+#include <utf8.h>
 
 #include FT_FREETYPE_H
 
@@ -51,7 +52,7 @@ export namespace opengl
     private:
         std::mutex m_mutex;                                   // Mutex for thread safety
         std::vector<s_text_draw_data> m_text_draw_queue;      // Queue of text draw data
-        std::map<std::uint64_t, s_character> m_character_map; // Map of character to character map
+        std::map<std::uint32_t, s_character> m_character_map; // Map of character to character map
         glm::mat4 m_projection_matrix{};                      // Projection matrix for text rendering
 
         c_vertex_array m_vao;
@@ -62,16 +63,16 @@ export namespace opengl
         c_text_renderer(int width, int height);
         ~c_text_renderer() = default;
 
-        void load_font(const std::filesystem::path &font_path, unsigned int font_size);
-        void resize(int width, int height);
-        void submit(const std::string &text, float x_pos, float y_pos, float scale, const glm::vec3 &color);
-        void draw_texts();
+        auto load_font(const std::filesystem::path &font_path, unsigned int font_size) -> void;
+        auto resize(int width, int height) -> void;
+        auto submit(const std::string &text, float x_pos, float y_pos, float scale, const glm::vec3 &color) -> void;
+        auto draw_texts() -> void;
 
         // Disable copy and move semantics
         c_text_renderer(const c_text_renderer &) = delete;
         c_text_renderer(c_text_renderer &&) = delete;
-        c_text_renderer &operator=(const c_text_renderer &) = delete;
-        c_text_renderer &operator=(c_text_renderer &&) = delete;
+        auto operator=(const c_text_renderer &) -> c_text_renderer & = delete;
+        auto operator=(c_text_renderer &&) -> c_text_renderer & = delete;
     };
 
 } // namespace opengl
@@ -103,7 +104,7 @@ namespace opengl
         utility::c_notifier::subscribe(init);
     }
 
-    void c_text_renderer::load_font(const std::filesystem::path &font_path, unsigned int font_size)
+    auto c_text_renderer::load_font(const std::filesystem::path &font_path, unsigned int font_size) -> void
     {
         FT_Library ft_lib{};
         if (FT_Init_FreeType(&ft_lib))
@@ -118,6 +119,8 @@ namespace opengl
             std::println(std::cerr, "Could not load font: {}", font_path.c_str());
             return;
         }
+
+        FT_Select_Charmap(face, FT_ENCODING_UNICODE);
 
         FT_Set_Pixel_Sizes(face, 0, font_size);
 
@@ -137,14 +140,14 @@ namespace opengl
             unsigned int texture_id{};
             glGenTextures(1, &texture_id);
             glBindTexture(GL_TEXTURE_2D, texture_id);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, face->glyph->bitmap.width, face->glyph->bitmap.rows, 0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, static_cast<int>(face->glyph->bitmap.width), static_cast<int>(face->glyph->bitmap.rows), 0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-            m_character_map[charcode] = {
+            m_character_map[static_cast<std::uint32_t>(charcode)] = {
                 .texture_id = texture_id,
                 .size = glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
                 .bearing = glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
@@ -157,13 +160,13 @@ namespace opengl
         FT_Done_FreeType(ft_lib);
     }
 
-    void c_text_renderer::resize(int width, int height)
+    auto c_text_renderer::resize(int width, int height) -> void
     {
         m_projection_matrix = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height), -1.F, 1.F);
         m_shader.set_uniform_mat4f("projection", m_projection_matrix);
     }
 
-    void c_text_renderer::submit(const std::string &text, float x_pos, float y_pos, float scale, const glm::vec3 &color)
+    auto c_text_renderer::submit(const std::string &text, float x_pos, float y_pos, float scale, const glm::vec3 &color) -> void
     {
         if (text.empty())
         {
@@ -173,7 +176,7 @@ namespace opengl
         m_text_draw_queue.emplace_back(text, x_pos, y_pos, scale, color);
     }
 
-    void c_text_renderer::draw_texts()
+    auto c_text_renderer::draw_texts() -> void
     {
         if (m_text_draw_queue.empty())
         {
@@ -188,24 +191,29 @@ namespace opengl
             m_shader.set_uniform_3f("textColor", color);
             m_shader.bind();
 
-            for (const char character : text)
+            // We process text to ensure it is valid UTF-8
+            std::string temp = utf8::replace_invalid(text);
+            auto iter = temp.begin();
+
+            for (auto _ = 0; _ < utf8::distance(temp.begin(), temp.end()); ++_)
             {
-                if (m_character_map.find(character) == m_character_map.end())
+                std::uint32_t character = utf8::next(iter, temp.end());
+                if (not m_character_map.contains(character))
                 {
                     std::println(std::cerr, "Character '{}' not found in character map", character);
                     continue;
                 }
 
                 s_character character_struct = m_character_map[character];
-                float xpos = x + character_struct.bearing.x * scale;
-                float ypos = y - (character_struct.size.y - character_struct.bearing.y) * scale;
-                float w = character_struct.size.x * scale;
-                float h = character_struct.size.y * scale;
+                float xpos = x + (static_cast<float>(character_struct.bearing.x) * scale);
+                float ypos = y - (static_cast<float>(character_struct.size.y - character_struct.bearing.y) * scale);
+                float char_width = static_cast<float>(character_struct.size.x) * scale;
+                float char_height = static_cast<float>(character_struct.size.y) * scale;
 
                 // Only render if the character has dimensions
-                if (w <= 0 || h <= 0)
+                if (char_width <= 0 || char_height <= 0)
                 {
-                    x += (character_struct.advance >> 6) * scale; // Still advance cursor
+                    x += static_cast<float>(character_struct.advance >> 6U) * scale; // Still advance cursor
                     continue;
                 }
 
@@ -215,11 +223,11 @@ namespace opengl
                 // So we flip texture's y-coordinate (0->1, 1->0)
                 std::vector<float> vertices{
                     xpos,     ypos,     0.0F, 1.0F,
-                    xpos,     ypos + h, 0.0F, 0.0F,
-                    xpos + w, ypos + h, 1.0F, 0.0F,
+                    xpos,     ypos + char_height, 0.0F, 0.0F,
+                    xpos + char_width, ypos + char_height, 1.0F, 0.0F,
                     
-                    xpos + w, ypos,     1.0F, 1.0F,
-                    xpos + w, ypos + h, 1.0F, 0.0F, 
+                    xpos + char_width, ypos,     1.0F, 1.0F,
+                    xpos + char_width, ypos + char_height, 1.0F, 0.0F, 
                     xpos,    ypos,      0.0F, 1.0F
                 };
                 // clang-format on
@@ -232,7 +240,7 @@ namespace opengl
                 glDrawArrays(GL_TRIANGLES, 0, 6);
 
                 // Advance cursor for next glyph
-                x += (character_struct.advance >> 6) * scale;
+                x += static_cast<float>(character_struct.advance >> 6U) * scale;
             }
         }
         m_vao.unbind();

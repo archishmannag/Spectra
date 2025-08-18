@@ -14,6 +14,7 @@ find_package(GLEW REQUIRED)
 find_package(glm REQUIRED)
 find_package(SndFile REQUIRED)
 find_package(miniaudio REQUIRED)
+find_package(utf8cpp REQUIRED)
 find_package(OpenGL REQUIRED)
 
 add_compile_options(
