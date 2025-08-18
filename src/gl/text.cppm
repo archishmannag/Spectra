@@ -1,5 +1,4 @@
 module;
-
 #include <GL/glew.h>
 #include <ft2build.h>
 
@@ -8,12 +7,10 @@ module;
 #include <filesystem>
 #include <iostream>
 #include <map>
-#include <memory>
 #include <mutex>
 #include <print>
 #include <string>
 #include <vector>
-
 export module opengl:text;
 
 import :shader;
@@ -21,6 +18,8 @@ import :vertex_array;
 import :index_buffer;
 import :vertex_buffer;
 import :buffer_layout;
+
+import utility;
 import glm;
 
 namespace
@@ -55,20 +54,14 @@ export namespace opengl
         std::map<std::uint64_t, s_character> m_character_map; // Map of character to character map
         glm::mat4 m_projection_matrix{};                      // Projection matrix for text rendering
 
-        std::unique_ptr<c_vertex_array> m_vao;
-        std::unique_ptr<c_vertex_buffer> m_vbo;
-        std::unique_ptr<c_shader> m_shader;
+        c_vertex_array m_vao;
+        c_vertex_buffer<float> m_vbo;
+        c_shader m_shader;
 
     public:
-        c_text_renderer() = default;
+        c_text_renderer(int width, int height);
         ~c_text_renderer() = default;
 
-        /**
-         * Initialize text renderer with the given width and height.
-         * @param width Width of the rendering area
-         * @param height Height of the rendering area
-         */
-        void init(int width, int height);
         void load_font(const std::filesystem::path &font_path, unsigned int font_size);
         void resize(int width, int height);
         void submit(const std::string &text, float x_pos, float y_pos, float scale, const glm::vec3 &color);
@@ -86,23 +79,28 @@ export namespace opengl
 // Implementation
 namespace opengl
 {
-    void c_text_renderer::init(int width, int height)
+    c_text_renderer::c_text_renderer(int width, int height)
+        : m_vbo(std::vector<float>{}, 6UL * 4 * sizeof(float), GL_DYNAMIC_DRAW),
+          m_shader(SOURCE_DIR "/src/shaders/text_shader.glsl")
     {
         m_projection_matrix = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height));
-        m_shader = std::make_unique<c_shader>(SOURCE_DIR "/src/shaders/text_shader.glsl");
-        m_shader->set_uniform_mat4f("projection", m_projection_matrix);
-        m_shader->set_uniform_1i("text", 0); // Set the texture sampler to 0
 
-        c_buffer_layout layout;
-        layout.push<float>(2); // Position
-        layout.push<float>(2); // Texture coordinates
+        auto init = [this]()
+        {
+            m_shader.set_uniform_mat4f("projection", m_projection_matrix);
+            m_shader.set_uniform_1i("text", 0); // Set the texture sampler to 0
 
-        m_vbo = std::make_unique<c_vertex_buffer>(std::vector<float>{}, 6UL * 4 * sizeof(float), GL_DYNAMIC_DRAW);
-        m_vao = std::make_unique<c_vertex_array>();
-        m_vao->add_buffer(*m_vbo, layout);
+            c_buffer_layout layout;
+            layout.push<float>(2); // Position
+            layout.push<float>(2); // Texture coordinates
 
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            m_vao.add_buffer(m_vbo, layout);
+
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        };
+
+        utility::c_notifier::subscribe(init);
     }
 
     void c_text_renderer::load_font(const std::filesystem::path &font_path, unsigned int font_size)
@@ -162,7 +160,7 @@ namespace opengl
     void c_text_renderer::resize(int width, int height)
     {
         m_projection_matrix = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height), -1.F, 1.F);
-        m_shader->set_uniform_mat4f("projection", m_projection_matrix);
+        m_shader.set_uniform_mat4f("projection", m_projection_matrix);
     }
 
     void c_text_renderer::submit(const std::string &text, float x_pos, float y_pos, float scale, const glm::vec3 &color)
@@ -177,19 +175,18 @@ namespace opengl
 
     void c_text_renderer::draw_texts()
     {
-
         if (m_text_draw_queue.empty())
         {
             return;
         }
 
-        std::lock_guard<std::mutex> lock(m_mutex); // Ensure thread safety
+        std::lock_guard<std::mutex> lock(m_mutex);
         glActiveTexture(GL_TEXTURE0);
-        m_vao->bind();
+        m_vao.bind();
         for (auto &[text, x, y, scale, color] : m_text_draw_queue)
         {
-            m_shader->set_uniform_3f("textColor", color);
-            m_shader->bind();
+            m_shader.set_uniform_3f("textColor", color);
+            m_shader.bind();
 
             for (const char character : text)
             {
@@ -228,19 +225,19 @@ namespace opengl
                 // clang-format on
 
                 glBindTexture(GL_TEXTURE_2D, character_struct.texture_id);
-                m_vbo->update_buffer(vertices, 0, vertices.size() * sizeof(float));
+                m_vbo.update_buffer(vertices, 0, vertices.size());
 
                 // Draw
-                m_vbo->bind();
+                m_vbo.bind();
                 glDrawArrays(GL_TRIANGLES, 0, 6);
 
                 // Advance cursor for next glyph
                 x += (character_struct.advance >> 6) * scale;
             }
         }
-        m_vao->unbind();
+        m_vao.unbind();
         glBindTexture(GL_TEXTURE_2D, 0);
-        m_shader->unbind();
+        m_shader.unbind();
         m_text_draw_queue.clear();
     }
 

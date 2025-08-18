@@ -20,7 +20,8 @@ export namespace opengl
         c_vertex_array();
         ~c_vertex_array();
 
-        auto add_buffer(const c_vertex_buffer &vbuff, const c_buffer_layout &layout) const -> void;
+        template <typename T>
+        auto add_buffer(const c_vertex_buffer<T> &vbuff, const c_buffer_layout &layout) const -> void;
 
         auto bind() const -> void;
         auto unbind() const -> void;
@@ -47,7 +48,8 @@ namespace opengl
         glDeleteVertexArrays(1, &m_vao_id);
     }
 
-    auto c_vertex_array::add_buffer(const c_vertex_buffer &vbuff, const c_buffer_layout &layout) const -> void
+    template <typename T>
+    auto c_vertex_array::add_buffer(const c_vertex_buffer<T> &vbuff, const c_buffer_layout &layout) const -> void
     {
         bind();
         vbuff.bind();

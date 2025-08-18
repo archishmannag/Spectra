@@ -25,9 +25,10 @@ export namespace opengl
     class c_renderer
     {
     public:
+        template <typename T>
         auto draw(
             const c_vertex_array &varr,
-            const c_vertex_buffer &vbuff,
+            const c_vertex_buffer<T> &vbuff,
             const c_index_buffer &ibuff,
             const c_shader &shader,
             e_render_primitive primitive = e_render_primitive::triangles) const -> void;
@@ -39,9 +40,10 @@ export namespace opengl
 // Implementation
 namespace opengl
 {
+    template <typename T>
     auto c_renderer::draw(
         const c_vertex_array &varr,
-        const c_vertex_buffer &vbuff,
+        const c_vertex_buffer<T> &vbuff,
         const c_index_buffer &ibuff,
         const c_shader &shader,
         e_render_primitive primitive) const -> void
