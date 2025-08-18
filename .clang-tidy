@@ -6,7 +6,7 @@ Checks: >
   -google-*,
   -zircon-*,
   -abseil-*,
-  -modernize-use-trailing-return-type,
+  modernize-use-trailing-return-type,
   -llvm-header-guard,
   -llvmlibc-*,
   -altera-*,
@@ -14,15 +14,13 @@ Checks: >
   -cppcoreguidelines-special-member-functions,
   -misc-non-private-member-variables-in-classes,
   -readability-named-parameter,
-  -readability-braces-around-statements,
   -readability-magic-numbers,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-type-union-access,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-type-reinterpret-cast,
-  -cppcoreguidelines-pro-type-cstyle-cast
-  -cppcoreguidelines-pro-bounds-constant-array-index,
-  -hicpp-signed-bitwise
+  -cppcoreguidelines-pro-type-cstyle-cast,
+  -cppcoreguidelines-pro-bounds-constant-array-index
 
 WarningsAsErrors: ""
 HeaderFilterRegex: ""
@@ -64,6 +62,10 @@ CheckOptions:
   - key: readability-identifier-naming.ClassMemberPrefix
     value: s_
 
+  # Modern C++23 configuration
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 1
+
   # Other configuration
   - key: readability-function-cognitive-complexity.Threshold
     value: 25
@@ -73,6 +75,14 @@ CheckOptions:
     value: reasonable
   - key: modernize-replace-auto-ptr.IncludeStyle
     value: llvm
+  - key: modernize-use-nodiscard.ReplacementString
+    value: "[[nodiscard]]"
+  - key: modernize-use-override.AllowOverrideAndFinal
+    value: false
+  - key: modernize-use-equals-default.IgnoreMacros
+    value: false
+  - key: modernize-use-equals-delete.IgnoreMacros
+    value: false
   - key: performance-move-const-arg.CheckTriviallyCopyableMove
     value: true
   - key: readability-implicit-bool-conversion.AllowIntegerConditions
@@ -81,5 +91,9 @@ CheckOptions:
     value: true
   - key: performance-unnecessary-value-param.AllowedTypes
     value: "vec2;vec3;vec4;mat2;mat3;mat4"
+  - key: cppcoreguidelines-init-variables.MathHeader
+    value: "<cmath>"
+  - key: cppcoreguidelines-narrowing-conversions.WarnOnFloatingPointNarrowingConversion
+    value: true
 
 FormatStyle: file
