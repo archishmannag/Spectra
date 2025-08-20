@@ -3,6 +3,7 @@ module;
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <print>
 #include <sstream>
 #include <string>
@@ -181,7 +182,7 @@ namespace opengl
         int location = glGetUniformLocation(m_shader_id, name.c_str());
         if (location == -1)
         {
-            std::println("Warning: uniform '{}' doesn't exist!", name);
+            std::println(std::cerr, "Warning: uniform '{}' doesn't exist!", name);
         }
         m_uniform_location_cache[name] = location;
         return location;

@@ -36,7 +36,7 @@ namespace opengl
         : m_count(count),
           m_usage(usage)
     {
-        auto init = [this, &data]()
+        auto init = [this, data]()
         {
             glGenBuffers(1, &m_vbo_id);
             if (m_count > 0)

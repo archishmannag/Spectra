@@ -25,10 +25,12 @@ add_compile_options(
     -Wshadow
     -Wconversion
     -Wno-unknown-pragmas
-    -fsanitize=address,undefined,leak
     -fno-omit-frame-pointer
+    "-fsanitize=address,undefined,leak"
     -fcolor-diagnostics # Clang-specific: color output
 )
-add_link_options(-fsanitize=address,undefined,leak)
+add_link_options(
+    "-fsanitize=address,undefined,leak"
+    )
 
 add_subdirectory(src)
