@@ -52,7 +52,7 @@ export namespace opengl
             break;
 
         case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-            i_type = "UDEFINED BEHAVIOR";
+            i_type = "UNDEFINED BEHAVIOR";
             break;
 
         case GL_DEBUG_TYPE_PORTABILITY:

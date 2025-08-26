@@ -1,6 +1,7 @@
 module;
 #include <GL/glew.h>
 
+#include <utility>
 #include <vector>
 export module opengl:index_buffer;
 
@@ -14,10 +15,13 @@ export namespace opengl
         c_index_buffer(const std::vector<unsigned int> &data, std::size_t count, GLenum usage = GL_STATIC_DRAW);
         ~c_index_buffer();
 
+        c_index_buffer(c_index_buffer &&other) noexcept = default;
+        auto operator=(c_index_buffer &&other) noexcept -> c_index_buffer &;
+
         auto bind() const -> void;
         auto unbind() -> void;
 
-        [[nodiscard]] auto get_count() const -> unsigned int;
+        [[nodiscard]] auto get_count() const -> std::size_t;
 
         auto update_buffer(const std::vector<unsigned int> &data, std::size_t count) -> void;
 
@@ -59,7 +63,19 @@ namespace opengl
         glDeleteBuffers(1, &m_ibo_id);
     }
 
-    auto c_index_buffer::get_count() const -> unsigned int
+    auto c_index_buffer::operator=(c_index_buffer &&other) noexcept -> c_index_buffer &
+    {
+        if (this != &other)
+        {
+            glDeleteBuffers(1, &m_ibo_id);
+            m_ibo_id = std::exchange(m_ibo_id, 0);
+            m_count = std::exchange(m_count, 0);
+            m_usage = std::exchange(m_usage, GL_STATIC_DRAW);
+        }
+        return *this;
+    }
+
+    auto c_index_buffer::get_count() const -> std::size_t
     {
         return m_count;
     }

@@ -122,6 +122,9 @@ export namespace opengl
         explicit c_shader(std::filesystem::path shader_source_file);
         ~c_shader();
 
+        c_shader(c_shader &&other) noexcept;
+        auto operator=(c_shader &&other) noexcept -> c_shader &;
+
         auto bind() const -> void;
         auto unbind() const -> void;
 
@@ -161,6 +164,23 @@ namespace opengl
     c_shader::~c_shader()
     {
         glDeleteProgram(m_shader_id);
+    }
+
+    c_shader::c_shader(c_shader &&other) noexcept
+        : m_shader_id(std::exchange(other.m_shader_id, 0)),
+          m_uniform_location_cache(std::move(other.m_uniform_location_cache))
+    {
+    }
+
+    auto c_shader::operator=(c_shader &&other) noexcept -> c_shader &
+    {
+        if (this != &other)
+        {
+            glDeleteProgram(m_shader_id);
+            m_shader_id = std::exchange(other.m_shader_id, 0);
+            m_uniform_location_cache = std::move(other.m_uniform_location_cache);
+        }
+        return *this;
     }
 
     auto c_shader::bind() const -> void

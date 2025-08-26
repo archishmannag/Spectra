@@ -61,7 +61,7 @@ export namespace opengl
 
     public:
         c_text_renderer(int width, int height);
-        ~c_text_renderer() = default;
+        ~c_text_renderer();
 
         auto load_font(const std::filesystem::path &font_path, unsigned int font_size) -> void;
         auto resize(int width, int height) -> void;
@@ -104,8 +104,23 @@ namespace opengl
         utility::c_notifier::subscribe(init);
     }
 
+    c_text_renderer::~c_text_renderer()
+    {
+        for (auto &[_, character] : m_character_map)
+        {
+            glDeleteTextures(1, &character.texture_id);
+        }
+    }
+
     auto c_text_renderer::load_font(const std::filesystem::path &font_path, unsigned int font_size) -> void
     {
+        // Clear existing character map and textures
+        for (auto &[_, character] : m_character_map)
+        {
+            glDeleteTextures(1, &character.texture_id);
+        }
+        m_character_map.clear();
+
         FT_Library ft_lib{};
         if (FT_Init_FreeType(&ft_lib))
         {
@@ -222,18 +237,18 @@ namespace opengl
                 // Remember that Gl's co-ordinate has y-axis increasing bottom to top, but texture coordinates have y-axis increasing top to bottom.
                 // So we flip texture's y-coordinate (0->1, 1->0)
                 std::vector<float> vertices{
-                    xpos,     ypos,     0.0F, 1.0F,
-                    xpos,     ypos + char_height, 0.0F, 0.0F,
+                    xpos,              ypos,               0.0F, 1.0F,
+                    xpos,              ypos + char_height, 0.0F, 0.0F,
                     xpos + char_width, ypos + char_height, 1.0F, 0.0F,
                     
-                    xpos + char_width, ypos,     1.0F, 1.0F,
+                    xpos + char_width, ypos,               1.0F, 1.0F,
                     xpos + char_width, ypos + char_height, 1.0F, 0.0F, 
-                    xpos,    ypos,      0.0F, 1.0F
+                    xpos,              ypos,               0.0F, 1.0F
                 };
                 // clang-format on
 
                 glBindTexture(GL_TEXTURE_2D, character_struct.texture_id);
-                m_vbo.update_buffer(vertices, 0, vertices.size());
+                m_vbo.update_buffer(vertices, vertices.size());
 
                 // Draw
                 m_vbo.bind();

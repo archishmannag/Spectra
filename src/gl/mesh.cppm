@@ -75,14 +75,13 @@ namespace opengl
         m_indices = std::move(indices);
 
         // Update buffers
-        m_vertex_buffer.update_buffer(m_vertices, 0, m_vertices.size());
+        m_vertex_buffer.update_buffer(m_vertices, m_vertices.size());
         m_index_buffer.update_buffer(m_indices, m_indices.size());
         m_vertex_array.add_buffer(m_vertex_buffer, m_layout);
     }
 
     auto c_mesh::draw(const c_renderer &renderer, const c_shader &shader) const -> void
     {
-        renderer.clear();
         renderer.draw(m_vertex_array, m_vertex_buffer, m_index_buffer, shader, m_primitive_type);
     }
 

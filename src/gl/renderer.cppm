@@ -30,8 +30,8 @@ export namespace opengl
             const c_index_buffer &ibuff,
             const c_shader &shader,
             e_render_primitive primitive = e_render_primitive::triangles) const -> void;
-        auto clear() const -> void;
-        auto clear_color(float red, float green, float blue, float alpha = 1.0F) const -> void;
+        static auto clear() -> void;
+        static auto clear_color(float red, float green, float blue, float alpha = 1.0F) -> void;
     };
 } // namespace opengl
 
@@ -54,12 +54,12 @@ namespace opengl
         glDrawElements(static_cast<GLenum>(primitive), static_cast<int>(ibuff.get_count()), GL_UNSIGNED_INT, nullptr);
     }
 
-    auto c_renderer::clear() const -> void
+    auto c_renderer::clear() -> void
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    auto c_renderer::clear_color(float red, float green, float blue, float alpha) const -> void
+    auto c_renderer::clear_color(float red, float green, float blue, float alpha) -> void
     {
         glClearColor(red, green, blue, alpha);
     }

@@ -2,6 +2,7 @@ module;
 #include <GL/glew.h>
 
 #include <cstddef>
+#include <utility>
 #include <vector>
 export module opengl:vertex_buffer;
 
@@ -15,6 +16,9 @@ export namespace opengl
     public:
         c_vertex_buffer(const std::vector<T> &data, std::size_t count, unsigned int usage = GL_STATIC_DRAW);
         ~c_vertex_buffer();
+
+        c_vertex_buffer(c_vertex_buffer &&other) noexcept = default;
+        auto operator=(c_vertex_buffer &&other) noexcept -> c_vertex_buffer &;
 
         auto update_buffer(const std::vector<T> &data, std::size_t count, unsigned int offset = 0) -> void;
 
@@ -59,6 +63,19 @@ namespace opengl
     c_vertex_buffer<T>::~c_vertex_buffer()
     {
         glDeleteBuffers(1, &m_vbo_id);
+    }
+
+    template <typename T>
+    auto c_vertex_buffer<T>::operator=(c_vertex_buffer &&other) noexcept -> c_vertex_buffer &
+    {
+        if (this != &other)
+        {
+            glDeleteBuffers(1, &m_vbo_id);
+            m_vbo_id = std::exchange(other.m_vbo_id, 0);
+            m_count = std::exchange(other.m_count, 0);
+            m_usage = std::exchange(other.m_usage, GL_STATIC_DRAW);
+        }
+        return *this;
     }
 
     template <typename T>

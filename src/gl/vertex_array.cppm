@@ -4,6 +4,7 @@ module;
 
 #include <cstdint>
 #include <ranges>
+#include <utility>
 
 export module opengl:vertex_array;
 
@@ -19,6 +20,9 @@ export namespace opengl
     public:
         c_vertex_array();
         ~c_vertex_array();
+
+        c_vertex_array(c_vertex_array &&other) noexcept = default;
+        auto operator=(c_vertex_array &&other) noexcept -> c_vertex_array &;
 
         template <typename T>
         auto add_buffer(const c_vertex_buffer<T> &vbuff, const c_buffer_layout &layout) const -> void;
@@ -46,6 +50,15 @@ namespace opengl
     c_vertex_array::~c_vertex_array()
     {
         glDeleteVertexArrays(1, &m_vao_id);
+    }
+
+    auto c_vertex_array::operator=(c_vertex_array &&other) noexcept -> c_vertex_array &
+    {
+        if (this != &other)
+        {
+            m_vao_id = std::exchange(other.m_vao_id, 0);
+        }
+        return *this;
     }
 
     template <typename T>
