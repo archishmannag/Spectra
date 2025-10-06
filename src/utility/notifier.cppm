@@ -1,7 +1,8 @@
 module;
 #include <functional>
+#include <mutex>
+#include <queue>
 #include <utility>
-#include <vector>
 export module utility:notifier;
 
 export namespace utility
@@ -14,7 +15,8 @@ export namespace utility
         static void reset() noexcept;
 
     private:
-        inline static std::vector<std::function<void()>> s_subscribers;
+        inline static std::mutex s_mutex;
+        inline static std::queue<std::function<void()>> s_subscribers;
         inline static bool s_is_notified;
     };
 } // namespace utility
@@ -24,26 +26,31 @@ namespace utility
 {
     void c_notifier::subscribe(std::function<void()> callback)
     {
+        std::lock_guard lock(s_mutex);
         if (s_is_notified)
         {
             callback();
             return;
         }
-        s_subscribers.push_back(std::move(callback));
+        s_subscribers.push(std::move(callback));
     }
 
     void c_notifier::notify()
     {
+        std::lock_guard lock(s_mutex);
         s_is_notified = true;
-        for (const auto &subscriber : s_subscribers)
+        while (not s_subscribers.empty())
         {
-            subscriber();
+            s_subscribers.front()();
+            s_subscribers.pop();
         }
-        s_subscribers.clear();
     }
     void c_notifier::reset() noexcept
     {
-        s_subscribers.clear();
+        while (not s_subscribers.empty())
+        {
+            s_subscribers.pop();
+        }
         s_is_notified = false;
     }
 } // namespace utility
