@@ -18,7 +18,7 @@ export namespace opengl
     struct s_vertex
     {
         glm::vec3 position;
-        // glm::vec3 normal;
+        glm::vec4 color;
     };
 
     class c_mesh
@@ -32,16 +32,16 @@ export namespace opengl
         c_vertex_buffer<s_vertex> m_vertex_buffer;
         c_index_buffer m_index_buffer;
 
-        e_render_primitive m_primitive_type = e_render_primitive::triangles;
+        e_render_primitive m_primitive_type;
 
     public:
-        c_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices);
+        c_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices, e_render_primitive type = e_render_primitive::triangles);
 
         /**
-         * @brief  Update mesh data.
+         * @brief Update mesh data.
          * Note: Cannot update buffer layout, only data can be updated.
-         * @param  vertices New vertex data
-         * @param  indices New index data
+         * @param vertices New vertex data
+         * @param indices New index data
          */
         auto update_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices) -> void;
         auto draw(const c_renderer &renderer, const c_shader &shader) const -> void;
@@ -53,16 +53,17 @@ export namespace opengl
 // Implementation
 namespace opengl
 {
-    c_mesh::c_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices)
+    c_mesh::c_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices, e_render_primitive type)
         : m_vertices(std::move(vertices)),
           m_indices(std::move(indices)),
           m_vertex_buffer(m_vertices, m_vertices.size(), GL_DYNAMIC_DRAW),
-          m_index_buffer(m_indices, m_indices.size(), GL_DYNAMIC_DRAW)
+          m_index_buffer(m_indices, m_indices.size(), GL_DYNAMIC_DRAW),
+          m_primitive_type(type)
     {
         auto init = [this]()
         {
             m_layout.push<float>(3); // Position
-            // layout.push<float>(3); // Normal
+            m_layout.push<float>(4); // Color
 
             m_vertex_array.add_buffer(m_vertex_buffer, m_layout);
         };
@@ -75,13 +76,22 @@ namespace opengl
         m_indices = std::move(indices);
 
         // Update buffers
-        m_vertex_buffer.update_buffer(m_vertices, m_vertices.size());
-        m_index_buffer.update_buffer(m_indices, m_indices.size());
-        m_vertex_array.add_buffer(m_vertex_buffer, m_layout);
+        auto update = [this, vertices = std::move(vertices), indices = std::move(indices)]
+        {
+            m_vertex_buffer.update_buffer(m_vertices, m_vertices.size());
+            m_index_buffer.update_buffer(m_indices, m_indices.size());
+            m_vertex_array.add_buffer(m_vertex_buffer, m_layout);
+        };
+        utility::c_notifier::subscribe(update);
     }
 
     auto c_mesh::draw(const c_renderer &renderer, const c_shader &shader) const -> void
     {
+        // Don't draw if we have no indices (mesh not properly initialized)
+        if (m_index_buffer.get_count() == 0)
+        {
+            return;
+        }
         renderer.draw(m_vertex_array, m_vertex_buffer, m_index_buffer, shader, m_primitive_type);
     }
 
