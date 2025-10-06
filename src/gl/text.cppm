@@ -61,10 +61,11 @@ export namespace opengl
         c_vertex_buffer<float> m_vbo;
         c_shader m_shader;
 
-    public:
-        c_text_renderer(int width, int height);
+        c_text_renderer();
         ~c_text_renderer();
 
+    public:
+        static auto instance() -> c_text_renderer &;
         auto load_font(const std::filesystem::path &font_path, unsigned int font_size) -> void;
         auto resize(glm::vec2 new_size) -> void;
         auto submit(const std::string &text, glm::vec2 position, float scale, const glm::vec3 &color) -> void;
@@ -83,11 +84,11 @@ export namespace opengl
 // Implementation
 namespace opengl
 {
-    c_text_renderer::c_text_renderer(int width, int height)
+    c_text_renderer::c_text_renderer()
         : m_vbo(std::vector<float>{}, 6UL * 4 * sizeof(float), GL_DYNAMIC_DRAW),
           m_shader(SOURCE_DIR "/src/shaders/text_shader.glsl")
     {
-        m_projection_matrix = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height));
+        m_projection_matrix = glm::gtc::ortho(0.F, 640.F, 0.F, 480.F);
 
         auto init = [this]()
         {
@@ -113,6 +114,12 @@ namespace opengl
         {
             glDeleteTextures(1, &character.texture_id);
         }
+    }
+
+    auto c_text_renderer::instance() -> c_text_renderer &
+    {
+        static c_text_renderer instance;
+        return instance;
     }
 
     auto c_text_renderer::load_font(const std::filesystem::path &font_path, unsigned int font_size) -> void
