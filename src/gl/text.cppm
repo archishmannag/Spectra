@@ -5,12 +5,14 @@ module;
 
 #include FT_FREETYPE_H
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <map>
 #include <mutex>
 #include <print>
 #include <string>
+#include <string_view>
 #include <vector>
 export module opengl:text;
 
@@ -64,9 +66,10 @@ export namespace opengl
         ~c_text_renderer();
 
         auto load_font(const std::filesystem::path &font_path, unsigned int font_size) -> void;
-        auto resize(int width, int height) -> void;
-        auto submit(const std::string &text, float x_pos, float y_pos, float scale, const glm::vec3 &color) -> void;
+        auto resize(glm::vec2 new_size) -> void;
+        auto submit(const std::string &text, glm::vec2 position, float scale, const glm::vec3 &color) -> void;
         auto draw_texts() -> void;
+        auto get_size(std::string_view text, float scale) const -> glm::vec2;
 
         // Disable copy and move semantics
         c_text_renderer(const c_text_renderer &) = delete;
@@ -175,20 +178,20 @@ namespace opengl
         FT_Done_FreeType(ft_lib);
     }
 
-    auto c_text_renderer::resize(int width, int height) -> void
+    auto c_text_renderer::resize(glm::vec2 new_size) -> void
     {
-        m_projection_matrix = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height), -1.F, 1.F);
+        m_projection_matrix = glm::gtc::ortho(0.F, new_size.x, 0.F, new_size.y, -1.F, 1.F);
         m_shader.set_uniform_mat4f("projection", m_projection_matrix);
     }
 
-    auto c_text_renderer::submit(const std::string &text, float x_pos, float y_pos, float scale, const glm::vec3 &color) -> void
+    auto c_text_renderer::submit(const std::string &text, glm::vec2 position, float scale, const glm::vec3 &color) -> void
     {
         if (text.empty())
         {
             return;
         }
         std::lock_guard<std::mutex> lock(m_mutex); // Ensure thread safety
-        m_text_draw_queue.emplace_back(text, x_pos, y_pos, scale, color);
+        m_text_draw_queue.emplace_back(text, position.x, position.y, scale, color);
     }
 
     auto c_text_renderer::draw_texts() -> void
@@ -226,7 +229,7 @@ namespace opengl
                 float char_height = static_cast<float>(character_struct.size.y) * scale;
 
                 // Only render if the character has dimensions
-                if (char_width <= 0 || char_height <= 0)
+                if (char_width <= 0 or char_height <= 0)
                 {
                     x += static_cast<float>(character_struct.advance >> 6U) * scale; // Still advance cursor
                     continue;
@@ -237,13 +240,13 @@ namespace opengl
                 // Remember that Gl's co-ordinate has y-axis increasing bottom to top, but texture coordinates have y-axis increasing top to bottom.
                 // So we flip texture's y-coordinate (0->1, 1->0)
                 std::vector<float> vertices{
-                    xpos,              ypos,               0.0F, 1.0F,
-                    xpos,              ypos + char_height, 0.0F, 0.0F,
-                    xpos + char_width, ypos + char_height, 1.0F, 0.0F,
-                    
-                    xpos + char_width, ypos,               1.0F, 1.0F,
-                    xpos + char_width, ypos + char_height, 1.0F, 0.0F, 
-                    xpos,              ypos,               0.0F, 1.0F
+                    xpos,              ypos,               0.0F, 1.0F, //    (x,y+h)            (x+w,y+h)
+                    xpos,              ypos + char_height, 0.0F, 0.0F, //    (0,0)              (0,1)
+                    xpos + char_width, ypos + char_height, 1.0F, 0.0F, //      +------------------+
+                    //                                                         |                  |
+                    xpos + char_width, ypos,               1.0F, 1.0F, //      +------------------+
+                    xpos + char_width, ypos + char_height, 1.0F, 0.0F, //    (1,1)              (1,0)
+                    xpos,              ypos,               0.0F, 1.0F  //    (x,y)              (x+w,y)
                 };
                 // clang-format on
 
@@ -264,4 +267,42 @@ namespace opengl
         m_text_draw_queue.clear();
     }
 
+    auto c_text_renderer::get_size(std::string_view text, float scale) const -> glm::vec2
+    {
+        if (text.empty())
+        {
+            return { 0.F, 0.F };
+        }
+
+        float width = 0.F;
+        float height = 0.F;
+        float max_bearing_y = 0.F;
+        float max_descender = 0.F;
+
+        std::string temp = utf8::replace_invalid(text);
+        auto iter = temp.begin();
+
+        for (auto _ = 0; _ < utf8::distance(temp.begin(), temp.end()); ++_)
+        {
+            std::uint32_t character = utf8::next(iter, temp.end());
+            if (not m_character_map.contains(character))
+            {
+                std::println(std::cerr, "Character '{}' not found in character map", character);
+                continue;
+            }
+
+            const s_character &char_struct = m_character_map.at(character);
+            width += (static_cast<float>(char_struct.advance >> 6U)) * scale; // Advance is in 1/64 pixels
+
+            float bearing_y = static_cast<float>(char_struct.bearing.y) * scale;
+            max_bearing_y = std::max(bearing_y, max_bearing_y);
+
+            float descender = static_cast<float>(char_struct.size.y - char_struct.bearing.y) * scale;
+            max_descender = std::max(descender, max_descender);
+        }
+
+        height = max_bearing_y + max_descender;
+
+        return { width, height };
+    }
 } // namespace opengl
