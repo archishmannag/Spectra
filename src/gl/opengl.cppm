@@ -11,3 +11,4 @@ export import :shader;
 export import :error;
 export import :mesh;
 export import :text;
+export import :shapes;
