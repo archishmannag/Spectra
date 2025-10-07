@@ -19,7 +19,7 @@ export namespace gui
     void init()
     {
         glfwSetErrorCallback(callback);
-        if (!glfwInit())
+        if (not glfwInit())
         {
             throw std::runtime_error("Failed to initialize GLFW");
         }

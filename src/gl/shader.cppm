@@ -25,7 +25,7 @@ namespace
     auto parse_file(const std::filesystem::path &path) -> s_shader_program_source
     {
         std::ifstream file(path);
-        if (!file.is_open())
+        if (not file.is_open())
         {
             std::println("Failed to open file: {}", path.string());
             return {};
