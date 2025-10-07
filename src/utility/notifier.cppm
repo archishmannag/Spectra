@@ -47,6 +47,7 @@ namespace utility
     }
     void c_notifier::reset() noexcept
     {
+        std::lock_guard lock(s_mutex);
         while (not s_subscribers.empty())
         {
             s_subscribers.pop();

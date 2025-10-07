@@ -76,13 +76,8 @@ namespace opengl
         m_indices = std::move(indices);
 
         // Update buffers
-        auto update = [this, vertices = std::move(vertices), indices = std::move(indices)]
-        {
-            m_vertex_buffer.update_buffer(m_vertices, m_vertices.size());
-            m_index_buffer.update_buffer(m_indices, m_indices.size());
-            m_vertex_array.add_buffer(m_vertex_buffer, m_layout);
-        };
-        utility::c_notifier::subscribe(update);
+        m_vertex_buffer.update_buffer(m_vertices, m_vertices.size());
+        m_index_buffer.update_buffer(m_indices, m_indices.size());
     }
 
     auto c_mesh::draw(const c_renderer &renderer, const c_shader &shader) const -> void
