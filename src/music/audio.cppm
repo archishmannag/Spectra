@@ -18,15 +18,22 @@ export namespace music
         c_audio_manager();
         ~c_audio_manager();
 
-        void add_track(std::shared_ptr<c_track> &track);
+        auto is_playing() const -> bool;
+        auto play() const -> void;
+        auto pause() const -> void;
+        auto add_track(std::shared_ptr<c_track> &track) -> void;
+
+        [[nodiscard]] auto output_buffer() const -> std::vector<float>;
 
     private:
         mutable std::mutex m_mutex;
         ma_context m_context{};
         ma_device m_device{};
         std::vector<std::weak_ptr<c_track>> m_tracks;
+        std::vector<float> m_output_buffer;
 
-        static constexpr void s_callback_fn(ma_device *device, void *output, const void *input, ma_uint32 frame_count);
+        auto auto_cleanup() -> void;
+        static constexpr auto s_callback_fn(ma_device *device, void *output, const void *input, ma_uint32 frame_count) -> void;
     };
 } // namespace music
 
@@ -73,32 +80,90 @@ namespace music
         m_tracks.clear();
     }
 
-    void c_audio_manager::add_track(std::shared_ptr<c_track> &track)
+    auto c_audio_manager::is_playing() const -> bool
+    {
+        std::lock_guard lock(m_mutex);
+        return std::ranges::any_of(m_tracks,
+                                   [](const std::weak_ptr<c_track> &track_ptr_weak)
+                                   {
+                                   auto track_ptr = track_ptr_weak.lock();
+                                   return track_ptr and track_ptr->is_playing(); });
+    }
+
+    auto c_audio_manager::play() const -> void
+    {
+        std::lock_guard lock(m_mutex);
+        for (const auto &track_ptr_weak : m_tracks)
+        {
+            if (auto track_ptr = track_ptr_weak.lock())
+            {
+                track_ptr->play();
+            }
+        }
+    }
+
+    auto c_audio_manager::pause() const -> void
+    {
+        std::lock_guard lock(m_mutex);
+        for (const auto &track_ptr_weak : m_tracks)
+        {
+            if (auto track_ptr = track_ptr_weak.lock())
+            {
+                track_ptr->pause();
+            }
+        }
+    }
+
+    auto c_audio_manager::output_buffer() const -> std::vector<float>
+    {
+        std::lock_guard lock(m_mutex);
+        return m_output_buffer;
+    }
+
+    auto c_audio_manager::add_track(std::shared_ptr<c_track> &track) -> void
     {
         std::lock_guard lock(m_mutex);
         m_tracks.push_back(track);
     }
 
-    constexpr void c_audio_manager::s_callback_fn(ma_device *device, void *output, const void * /*input*/, ma_uint32 frame_count)
+    auto c_audio_manager::auto_cleanup() -> void
+    {
+        std::lock_guard lock(m_mutex);
+        auto [first, last] = std::ranges::remove_if(m_tracks,
+                                                    [](const std::weak_ptr<c_track> &track_ptr_weak)
+                                                    { return track_ptr_weak.expired(); });
+        m_tracks.erase(first, last);
+    }
+
+    constexpr auto c_audio_manager::s_callback_fn(ma_device *device, void *output, const void * /*input*/, ma_uint32 frame_count) -> void
     {
         auto *audio_manager = reinterpret_cast<c_audio_manager *>(device->pUserData);
+        auto &storage = audio_manager->m_output_buffer;
         auto *output_samples = reinterpret_cast<float *>(output);
-        std::fill(output_samples, output_samples + static_cast<std::size_t>(frame_count * device->playback.channels), 0.F);
+        auto frames = frame_count * device->playback.channels;
+
+        std::fill(output_samples, output_samples + frames, 0.F);
         std::lock_guard lock(audio_manager->m_mutex);
         for (const auto &track_ptr_weak : audio_manager->m_tracks)
         {
             auto track_ptr = track_ptr_weak.lock();
-            if (!track_ptr)
+            if (not track_ptr)
             {
                 continue;
             }
             if (track_ptr->is_playing())
             {
-                std::vector<float> temp(static_cast<std::size_t>(frame_count * device->playback.channels));
+                std::vector<float> temp(frames, 0.F);
                 ma_uint64 frames_read = 0;
                 ma_data_source_read_pcm_frames(track_ptr->data_ptr(), temp.data(), frame_count, &frames_read);
-                std::transform(output_samples, output_samples + static_cast<std::size_t>(frame_count * device->playback.channels), temp.begin(), output_samples, std::plus<float>{});
+                std::transform(output_samples, output_samples + frames, temp.begin(), output_samples, std::plus<float>{});
             }
+        }
+        if (not audio_manager->m_tracks.empty())
+        {
+            storage.resize(frames);
+            std::ranges::fill(storage, 0.F);
+            std::copy(output_samples, output_samples + frames, storage.begin());
         }
     }
 
