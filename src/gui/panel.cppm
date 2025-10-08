@@ -138,6 +138,7 @@ export namespace gui
         virtual auto on_panel_restored() -> void {};
 
         auto renderer() const -> opengl::c_renderer &;
+        auto inline get_content_area_size() const -> glm::vec2;
 
     private:
         // Core properties
@@ -201,7 +202,7 @@ namespace gui
         update_button_positions();
         auto init = [this]
         {
-            m_shader.set_uniform_4f("u_fill_color", { 0.2F, 0.2F, 0.2F, 0.9F });
+            m_shader.set_uniform_4f("u_fill_color", { 0.05F, 0.05F, 0.1F, 0.9F });
             m_shader.set_uniform_4f("u_border_color", { 0.17F, 0.17F, 0.17F, 0.5F });
             m_shader.set_uniform_1f("u_border_radius", 10);
             m_shader.set_uniform_1f("u_border_thickness", 10);
@@ -495,7 +496,7 @@ namespace gui
     {
         glm::vec2 title_bar_pos = m_location + glm::vec2{ 0, m_size.y - m_title_bar_height };
         glm::vec2 title_bar_size = { m_size.x, m_title_bar_height };
-        glm::vec4 title_bar_color = { 0.3F, 0.3F, 0.3F, 1.0F };
+        glm::vec4 title_bar_color = { 0.2F, 0.2F, 0.3F, 1.0F };
 
         opengl::shapes::c_rectangle(title_bar_pos, title_bar_size, title_bar_color).draw(m_renderer, m_projection);
         auto title_text_size = opengl::c_text_renderer::instance().get_size(m_title, 1.F);
@@ -685,5 +686,10 @@ namespace gui
     auto c_panel::renderer() const -> opengl::c_renderer &
     {
         return m_renderer;
+    }
+
+    auto c_panel::get_content_area_size() const -> glm::vec2
+    {
+        return { m_size.x, m_size.y - m_title_bar_height };
     }
 } // namespace gui
