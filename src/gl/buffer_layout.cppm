@@ -31,7 +31,7 @@ export namespace opengl
     class c_buffer_layout
     {
     public:
-        c_buffer_layout() = default;
+        c_buffer_layout() noexcept = default;
 
         template <typename T>
         auto push(unsigned int /* count */) -> void

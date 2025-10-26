@@ -22,12 +22,12 @@ namespace
         std::string fragment_source;
     };
 
-    auto parse_file(const std::filesystem::path &path) -> s_shader_program_source
+    auto parse_file(const std::filesystem::path &path) noexcept -> s_shader_program_source
     {
         std::ifstream file(path);
         if (not file.is_open())
         {
-            std::println("Failed to open file: {}", path.string());
+            std::println(std::cerr, "Failed to open file: {}", path.string());
             return {};
         }
 
@@ -64,7 +64,7 @@ namespace
         return { .vertex_source = streams[0].str(), .fragment_source = streams[1].str() };
     }
 
-    auto compile_shader(unsigned int type, const std::string &source) -> unsigned int
+    auto compile_shader(unsigned int type, const std::string &source) noexcept -> unsigned int
     {
         int result{};
         unsigned int shader_id = glCreateShader(type);
@@ -79,7 +79,8 @@ namespace
             glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &length);
             char *message = static_cast<char *>(alloca(static_cast<unsigned long>(length) * sizeof(char)));
             glGetShaderInfoLog(shader_id, length, &length, message);
-            std::println("Failed to compile {} shader\n"
+            std::println(std::cerr,
+                         "Failed to compile {} shader\n"
                          "Error: {}",
                          type == GL_VERTEX_SHADER ? "vertex" : "fragment", message);
             glDeleteShader(shader_id);
@@ -89,7 +90,7 @@ namespace
         return shader_id;
     }
 
-    auto create_shader(const std::string &vertex_shader, const std::string &fragment_shader) -> unsigned int
+    auto create_shader(const std::string &vertex_shader, const std::string &fragment_shader) noexcept -> unsigned int
     {
         unsigned program = glCreateProgram();
         unsigned vertex_shader_compiled = compile_shader(GL_VERTEX_SHADER, vertex_shader);
@@ -119,7 +120,7 @@ export namespace opengl
          * @param shader_path - The path to the shader file
          * @note The shader file should contain both the vertex and fragment shaders
          */
-        explicit c_shader(std::filesystem::path shader_source_file);
+        explicit c_shader(std::filesystem::path shader_source_file) noexcept(true);
         ~c_shader();
 
         c_shader(c_shader &&other) noexcept;
@@ -151,7 +152,7 @@ export namespace opengl
 // Implementation
 namespace opengl
 {
-    c_shader::c_shader(std::filesystem::path shader_source_file)
+    c_shader::c_shader(std::filesystem::path shader_source_file) noexcept
     {
         auto init = [this, path = std::move(shader_source_file)]()
         {
@@ -210,64 +211,100 @@ namespace opengl
 
     auto c_shader::set_uniform_1f(const std::string &name, float value) -> void
     {
-        bind();
-        glUniform1f(get_uniform_location(name), value);
-        unbind();
+        auto init = [this, &name, value]
+        {
+            bind();
+            glUniform1f(get_uniform_location(name), value);
+            unbind();
+        };
+        utility::c_notifier::subscribe(init);
     }
 
     auto c_shader::set_uniform_1i(const std::string &name, int value) -> void
     {
-        bind();
-        glUniform1i(get_uniform_location(name), value);
-        unbind();
+        auto init = [this, &name, value]
+        {
+            bind();
+            glUniform1i(get_uniform_location(name), value);
+            unbind();
+        };
+        utility::c_notifier::subscribe(init);
     }
 
     auto c_shader::set_uniform_1ui(const std::string &name, unsigned int value) -> void
     {
-        bind();
-        glUniform1ui(get_uniform_location(name), value);
-        unbind();
+        auto init = [this, &name, value]
+        {
+            bind();
+            glUniform1ui(get_uniform_location(name), value);
+            unbind();
+        };
+        utility::c_notifier::subscribe(init);
     }
 
     auto c_shader::set_uniform_1fv(const std::string &name, const float *value, int count) -> void
     {
-        bind();
-        glUniform1fv(get_uniform_location(name), count, value);
-        unbind();
+        auto init = [this, &name, value, count]
+        {
+            bind();
+            glUniform1fv(get_uniform_location(name), count, value);
+            unbind();
+        };
+        utility::c_notifier::subscribe(init);
     }
 
     auto c_shader::set_uniform_1iv(const std::string &name, const int *value, int count) -> void
     {
-        bind();
-        glUniform1iv(get_uniform_location(name), count, value);
-        unbind();
+        auto init = [this, &name, value, count]
+        {
+            bind();
+            glUniform1iv(get_uniform_location(name), count, value);
+            unbind();
+        };
+        utility::c_notifier::subscribe(init);
     }
 
     auto c_shader::set_uniform_2f(const std::string &name, const glm::vec2 &value) -> void
     {
-        bind();
-        glUniform2f(get_uniform_location(name), value.x, value.y);
-        unbind();
+        auto init = [this, &name, value]
+        {
+            bind();
+            glUniform2f(get_uniform_location(name), value.x, value.y);
+            unbind();
+        };
+        utility::c_notifier::subscribe(init);
     }
 
     auto c_shader::set_uniform_3f(const std::string &name, const glm::vec3 &value) -> void
     {
-        bind();
-        glUniform3f(get_uniform_location(name), value.x, value.y, value.z);
-        unbind();
+        auto init = [this, &name, value]
+        {
+            bind();
+            glUniform3f(get_uniform_location(name), value.x, value.y, value.z);
+            unbind();
+        };
+        utility::c_notifier::subscribe(init);
     }
 
     auto c_shader::set_uniform_4f(const std::string &name, const glm::vec4 &value) -> void
     {
-        bind();
-        glUniform4f(get_uniform_location(name), value.x, value.y, value.z, value.w);
-        unbind();
+        auto init = [this, &name, value]
+        {
+            bind();
+            glUniform4f(get_uniform_location(name), value.x, value.y, value.z, value.w);
+            unbind();
+        };
+        utility::c_notifier::subscribe(init);
     }
 
     auto c_shader::set_uniform_mat4f(const std::string &name, const glm::mat4 &value) -> void
     {
-        bind();
-        glUniformMatrix4fv(get_uniform_location(name), 1, GL_FALSE, glm::gtc::value_ptr(value));
-        unbind();
+        auto init = [this, &name, value]
+        {
+            bind();
+            glUniformMatrix4fv(get_uniform_location(name), 1, GL_FALSE, glm::gtc::value_ptr(value));
+            unbind();
+        };
+        utility::c_notifier::subscribe(init);
     }
 } // namespace opengl
