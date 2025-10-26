@@ -143,8 +143,7 @@ namespace music
         auto frames = frame_count * device->playback.channels;
 
         std::fill(output_samples, output_samples + frames, 0.F);
-        std::lock_guard lock(audio_manager->m_mutex);
-        for (const auto &track_ptr_weak : audio_manager->m_tracks)
+        for (std::lock_guard lock(audio_manager->m_mutex); const auto &track_ptr_weak : audio_manager->m_tracks)
         {
             auto track_ptr = track_ptr_weak.lock();
             if (not track_ptr)
@@ -159,12 +158,9 @@ namespace music
                 std::transform(output_samples, output_samples + frames, temp.begin(), output_samples, std::plus<float>{});
             }
         }
-        if (not audio_manager->m_tracks.empty())
-        {
-            storage.resize(frames);
-            std::ranges::fill(storage, 0.F);
-            std::copy(output_samples, output_samples + frames, storage.begin());
-        }
+        storage.resize(frames);
+        std::ranges::fill(storage, 0.F);
+        std::copy(output_samples, output_samples + frames, storage.begin());
     }
 
 } // namespace music
