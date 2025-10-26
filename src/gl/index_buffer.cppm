@@ -12,10 +12,10 @@ export namespace opengl
     class c_index_buffer
     {
     public:
-        c_index_buffer(const std::vector<unsigned int> &data, std::size_t count, GLenum usage = GL_STATIC_DRAW);
+        c_index_buffer(const std::vector<unsigned int> &data, std::size_t count, GLenum usage = GL_STATIC_DRAW) noexcept;
         ~c_index_buffer();
 
-        c_index_buffer(c_index_buffer &&other) noexcept = default;
+        c_index_buffer(c_index_buffer &&other) noexcept;
         auto operator=(c_index_buffer &&other) noexcept -> c_index_buffer &;
 
         auto bind() const -> void;
@@ -35,7 +35,7 @@ export namespace opengl
 // Implementation
 namespace opengl
 {
-    c_index_buffer::c_index_buffer(const std::vector<unsigned int> &data, std::size_t count, GLenum usage)
+    c_index_buffer::c_index_buffer(const std::vector<unsigned int> &data, std::size_t count, GLenum usage) noexcept
         : m_count(count),
           m_usage(usage)
     {
@@ -63,14 +63,21 @@ namespace opengl
         glDeleteBuffers(1, &m_ibo_id);
     }
 
+    c_index_buffer::c_index_buffer(c_index_buffer &&other) noexcept
+        : m_ibo_id(std::exchange(other.m_ibo_id, 0)),
+          m_count(std::exchange(other.m_count, 0)),
+          m_usage(std::exchange(other.m_usage, GL_STATIC_DRAW))
+    {
+    }
+
     auto c_index_buffer::operator=(c_index_buffer &&other) noexcept -> c_index_buffer &
     {
         if (this != &other)
         {
             glDeleteBuffers(1, &m_ibo_id);
-            m_ibo_id = std::exchange(m_ibo_id, 0);
-            m_count = std::exchange(m_count, 0);
-            m_usage = std::exchange(m_usage, GL_STATIC_DRAW);
+            m_ibo_id = std::exchange(other.m_ibo_id, 0);
+            m_count = std::exchange(other.m_count, 0);
+            m_usage = std::exchange(other.m_usage, GL_STATIC_DRAW);
         }
         return *this;
     }

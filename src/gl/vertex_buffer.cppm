@@ -14,10 +14,10 @@ export namespace opengl
     class c_vertex_buffer
     {
     public:
-        c_vertex_buffer(const std::vector<T> &data, std::size_t count, unsigned int usage = GL_STATIC_DRAW);
+        c_vertex_buffer(const std::vector<T> &data, std::size_t count, unsigned int usage = GL_STATIC_DRAW) noexcept;
         ~c_vertex_buffer();
 
-        c_vertex_buffer(c_vertex_buffer &&other) noexcept = default;
+        c_vertex_buffer(c_vertex_buffer &&other) noexcept;
         auto operator=(c_vertex_buffer &&other) noexcept -> c_vertex_buffer &;
 
         auto update_buffer(const std::vector<T> &data, std::size_t count, unsigned int offset = 0) -> void;
@@ -36,7 +36,7 @@ export namespace opengl
 namespace opengl
 {
     template <typename T>
-    c_vertex_buffer<T>::c_vertex_buffer(const std::vector<T> &data, std::size_t count, GLenum usage)
+    c_vertex_buffer<T>::c_vertex_buffer(const std::vector<T> &data, std::size_t count, GLenum usage) noexcept
         : m_count(count),
           m_usage(usage)
     {
@@ -63,6 +63,14 @@ namespace opengl
     c_vertex_buffer<T>::~c_vertex_buffer()
     {
         glDeleteBuffers(1, &m_vbo_id);
+    }
+
+    template <typename T>
+    c_vertex_buffer<T>::c_vertex_buffer(c_vertex_buffer &&other) noexcept
+        : m_vbo_id(std::exchange(other.m_vbo_id, 0)),
+          m_count(std::exchange(other.m_count, 0)),
+          m_usage(std::exchange(other.m_usage, GL_STATIC_DRAW))
+    {
     }
 
     template <typename T>

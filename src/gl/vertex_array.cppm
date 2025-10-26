@@ -18,10 +18,10 @@ export namespace opengl
     class c_vertex_array
     {
     public:
-        c_vertex_array();
+        c_vertex_array() noexcept;
         ~c_vertex_array();
 
-        c_vertex_array(c_vertex_array &&other) noexcept = default;
+        c_vertex_array(c_vertex_array &&other) noexcept;
         auto operator=(c_vertex_array &&other) noexcept -> c_vertex_array &;
 
         template <typename T>
@@ -38,7 +38,7 @@ export namespace opengl
 // Implementation
 namespace opengl
 {
-    c_vertex_array::c_vertex_array()
+    c_vertex_array::c_vertex_array() noexcept
     {
         auto init = [this]()
         {
@@ -52,10 +52,16 @@ namespace opengl
         glDeleteVertexArrays(1, &m_vao_id);
     }
 
+    c_vertex_array::c_vertex_array(c_vertex_array &&other) noexcept
+        : m_vao_id(std::exchange(other.m_vao_id, 0))
+    {
+    }
+
     auto c_vertex_array::operator=(c_vertex_array &&other) noexcept -> c_vertex_array &
     {
         if (this != &other)
         {
+            glDeleteVertexArrays(1, &m_vao_id);
             m_vao_id = std::exchange(other.m_vao_id, 0);
         }
         return *this;

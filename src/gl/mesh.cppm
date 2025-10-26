@@ -37,6 +37,9 @@ export namespace opengl
     public:
         c_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices, e_render_primitive type = e_render_primitive::triangles);
 
+        c_mesh(c_mesh &&) noexcept;
+        auto operator=(c_mesh &&) noexcept -> c_mesh &;
+
         /**
          * @brief Update mesh data.
          * Note: Cannot update buffer layout, only data can be updated.
@@ -68,6 +71,32 @@ namespace opengl
             m_vertex_array.add_buffer(m_vertex_buffer, m_layout);
         };
         utility::c_notifier::subscribe(init);
+    }
+
+    c_mesh::c_mesh(c_mesh &&other) noexcept
+        : m_vertices(std::move(other.m_vertices)),
+          m_indices(std::move(other.m_indices)),
+          m_layout(std::move(other.m_layout)),
+          m_vertex_array(std::move(other.m_vertex_array)),
+          m_vertex_buffer(std::move(other.m_vertex_buffer)),
+          m_index_buffer(std::move(other.m_index_buffer)),
+          m_primitive_type(other.m_primitive_type)
+    {
+    }
+
+    auto c_mesh::operator=(c_mesh &&other) noexcept -> c_mesh &
+    {
+        if (this != &other)
+        {
+            m_vertices = std::move(other.m_vertices);
+            m_indices = std::move(other.m_indices);
+            m_layout = std::move(other.m_layout);
+            m_vertex_array = std::move(other.m_vertex_array);
+            m_vertex_buffer = std::move(other.m_vertex_buffer);
+            m_index_buffer = std::move(other.m_index_buffer);
+            m_primitive_type = other.m_primitive_type;
+        }
+        return *this;
     }
 
     auto c_mesh::update_mesh(std::vector<s_vertex> vertices, std::vector<unsigned int> indices) -> void
