@@ -7,6 +7,8 @@ import :vertex_array;
 import :index_buffer;
 import :vertex_buffer;
 
+import glm;
+
 export namespace opengl
 {
     enum class e_render_primitive : std::uint8_t
@@ -30,6 +32,8 @@ export namespace opengl
             const c_index_buffer &ibuff,
             const c_shader &shader,
             e_render_primitive primitive = e_render_primitive::triangles) const -> void;
+        static auto set_scissor_area(glm::vec2 position, glm::vec2 size) -> void;
+        static auto reset_scissor_area() -> void;
         static auto clear() -> void;
         static auto clear_color(float red, float green, float blue, float alpha = 1.0F) -> void;
     };
@@ -52,6 +56,17 @@ namespace opengl
         ibuff.bind();
 
         glDrawElements(static_cast<GLenum>(primitive), static_cast<int>(ibuff.get_count()), GL_UNSIGNED_INT, nullptr);
+    }
+
+    auto c_renderer::set_scissor_area(glm::vec2 position, glm::vec2 size) -> void
+    {
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(static_cast<GLint>(position.x), static_cast<GLint>(position.y), static_cast<GLsizei>(size.x), static_cast<GLsizei>(size.y));
+    }
+
+    auto c_renderer::reset_scissor_area() -> void
+    {
+        glDisable(GL_SCISSOR_TEST);
     }
 
     auto c_renderer::clear() -> void
