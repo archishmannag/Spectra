@@ -26,8 +26,12 @@ namespace utility
 {
     void c_notifier::subscribe(std::function<void()> callback)
     {
-        std::lock_guard lock(s_mutex);
-        if (s_is_notified)
+        bool notified = false;
+        {
+            std::scoped_lock lock(s_mutex);
+            notified = s_is_notified;
+        }
+        if (notified)
         {
             callback();
             return;
@@ -37,12 +41,16 @@ namespace utility
 
     void c_notifier::notify()
     {
-        std::lock_guard lock(s_mutex);
-        s_is_notified = true;
-        while (not s_subscribers.empty())
+        std::queue<std::function<void()>> current;
         {
-            s_subscribers.front()();
-            s_subscribers.pop();
+            std::scoped_lock lock(s_mutex);
+            std::swap(current, s_subscribers);
+            s_is_notified = true;
+        }
+        while (not current.empty())
+        {
+            current.front()();
+            current.pop();
         }
     }
     void c_notifier::reset() noexcept
