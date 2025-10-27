@@ -65,7 +65,6 @@ namespace
         bool pressed = false;
         std::function<void()> callback;
     };
-
 } // namespace
 
 export namespace gui
@@ -78,7 +77,7 @@ export namespace gui
     };
 
     /**
-     * A generalized GUI panel class with basic window functionalities like moving, resizing, minimizing, and closing.
+     * A generalized GUI panel interface class with basic window functionalities like moving, resizing, minimizing, and closing.
      *
      * The Panel class provides a flexible framework for creating interactive panels in a GUI application. It supports essential features such as:
      *   - Moving: Click and drag the title bar to reposition the panel.
@@ -87,8 +86,6 @@ export namespace gui
      *   - Closing: Remove the panel from view.
      *   - Customizable title bar with buttons for minimize and close actions.
      *   - Event handling for mouse interactions.
-     *
-     * The class is designed to be extended, allowing developers to override methods for custom rendering and behavior.
      */
     class c_panel
     {
@@ -106,11 +103,12 @@ export namespace gui
         auto restore() -> void;
         auto close() -> void;
 
-        // Event handling
-        virtual auto on_mouse_move(glm::vec2 mouse_position) -> void;
-        virtual auto on_mouse_press(glm::vec2 mouse_position, e_mouse_button button) -> void;
-        virtual auto on_mouse_release(glm::vec2 mouse_position, e_mouse_button button) -> void;
-        virtual auto on_resize(float width, float height) -> void;
+        // Event handling interfaces
+        virtual auto on_mouse_move(glm::vec2 mouse_position) -> void = 0;
+        virtual auto on_mouse_press(glm::vec2 mouse_position, e_mouse_button button) -> void = 0;
+        virtual auto on_mouse_release(glm::vec2 mouse_position, e_mouse_button button) -> void = 0;
+        virtual auto on_resize(float width, float height) -> void = 0;
+        virtual auto on_mouse_scroll(glm::vec2 position, glm::vec2 scroll_delta) -> void = 0;
 
         // Rendering
         virtual auto render() const -> void;
@@ -128,8 +126,8 @@ export namespace gui
         auto set_movable(bool movable) -> void;
         auto set_closable(bool closable) -> void;
 
-        // Set projection matrix for proper 2D rendering
         auto set_projection_matrix(const glm::mat4 &projection) -> void;
+        auto set_mouse_position(glm::vec2 mouse_position) -> void;
 
     protected:
         virtual auto render_content() const -> void {};
@@ -139,6 +137,7 @@ export namespace gui
 
         auto renderer() const -> opengl::c_renderer &;
         auto inline get_content_area_size() const -> glm::vec2;
+        auto inline get_mouse_position() const -> glm::vec2;
 
     private:
         // Core properties
@@ -205,7 +204,7 @@ namespace gui
             m_shader.set_uniform_4f("u_fill_color", { 0.05F, 0.05F, 0.1F, 0.9F });
             m_shader.set_uniform_4f("u_border_color", { 0.17F, 0.17F, 0.17F, 0.5F });
             m_shader.set_uniform_1f("u_border_radius", 10);
-            m_shader.set_uniform_1f("u_border_thickness", 10);
+            m_shader.set_uniform_1f("u_border_thickness", 8);
         };
         utility::c_notifier::subscribe(init);
     }
@@ -265,7 +264,10 @@ namespace gui
         // Update button hover states
         for (auto &button : m_buttons)
         {
-            button.hovered = (mouse_position.x >= button.position.x and mouse_position.x <= button.position.x + button.size.x and mouse_position.y >= button.position.y and mouse_position.y <= button.position.y + button.size.y);
+            button.hovered = (mouse_position.x >= button.position.x
+                              and mouse_position.x <= button.position.x + button.size.x
+                              and mouse_position.y >= button.position.y
+                              and mouse_position.y <= button.position.y + button.size.y);
         }
 
         drag_or_resize_panel(mouse_position);
@@ -328,6 +330,11 @@ namespace gui
     {
         update_size({ width, height });
         update_button_positions();
+    }
+
+    auto c_panel::on_mouse_scroll(glm::vec2 /*position*/, glm::vec2 /*scroll_delta*/) -> void
+    {
+        // Default implementation does nothing
     }
 
     auto c_panel::render() const -> void
@@ -683,6 +690,11 @@ namespace gui
         m_shader.set_uniform_mat4f("projection", m_projection);
     }
 
+    auto c_panel::set_mouse_position(glm::vec2 mouse_position) -> void
+    {
+        on_mouse_move(mouse_position);
+    }
+
     auto c_panel::renderer() const -> opengl::c_renderer &
     {
         return m_renderer;
@@ -691,5 +703,10 @@ namespace gui
     auto c_panel::get_content_area_size() const -> glm::vec2
     {
         return { m_size.x, m_size.y - m_title_bar_height };
+    }
+
+    auto c_panel::get_mouse_position() const -> glm::vec2
+    {
+        return m_last_mouse_pos;
     }
 } // namespace gui
