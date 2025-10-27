@@ -8,14 +8,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(freetype REQUIRED)
-find_package(glfw3 REQUIRED)
-find_package(GLEW REQUIRED)
-find_package(glm REQUIRED)
-find_package(SndFile REQUIRED)
-find_package(miniaudio REQUIRED)
-find_package(utf8cpp REQUIRED)
-find_package(OpenGL REQUIRED)
+find_package(freetype)
+find_package(glfw3)
+find_package(miniaudio)
+find_package(SndFile)
+find_package(glew)
+find_package(glm)
+find_package(utf8cpp)
+find_package(opengl_system)
 
 add_compile_options(
     -DSOURCE_DIR="${CMAKE_SOURCE_DIR}"

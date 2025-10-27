@@ -40,11 +40,11 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
         Freetype::Freetype
         glfw
+        miniaudio::miniaudio
+        SndFile::sndfile
         GLEW::GLEW
         glm::glm
-        SndFile::sndfile
-        miniaudio::miniaudio
         utf8cpp
-        OpenGL::GL
+        opengl::opengl
         stdc++exp # Link with the experimental C++ library for std::stacktrace on libstdc++ (Will remove for libcxx)
 )
