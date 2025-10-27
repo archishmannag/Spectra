@@ -33,7 +33,7 @@ float roundedBoxSDF(vec2 uv, vec2 size, float radius)
     vec2 p = (uv - 0.5) * size;
     vec2 halfSize = size * 0.5 - vec2(radius);
     vec2 d = abs(p) - halfSize;
-    return length(max(d, 0.0)) - radius;
+    return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - radius;
 }
 
 void main()
@@ -41,20 +41,20 @@ void main()
     float dist = roundedBoxSDF(v_uv, u_panel_size, u_border_radius);
 
     // Edge anti-aliasing factor
-    float aa = fwidth(dist);
+    float aa = fwidth(dist) * 0.5;
 
     // Fill mask: inside area of the rounded rectangle
-    float fillMask = smoothstep(0.0, aa, -dist);
+    float fillMask = smoothstep(aa, -aa, dist + u_border_thickness);
 
     // Border mask: narrow region around the shape's outer edge
-    float borderMask = smoothstep(-u_border_thickness - aa, -u_border_thickness, -dist)
-                     - fillMask;
+    float outerMask = smoothstep(aa, -aa, dist);
+    float borderMask = outerMask - fillMask;
 
     // Mix fill and border colors
-    vec4 color = mix(u_border_color, u_fill_color, fillMask);
+    vec4 color = mix(u_fill_color, u_border_color, borderMask);
 
     // Combine alpha from masks
-    float alpha = clamp(fillMask + borderMask, 0.0, 1.0);
+    float alpha = outerMask;
 
     fragColor = vec4(color.rgb, color.a * alpha);
 }
