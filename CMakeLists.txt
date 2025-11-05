@@ -17,20 +17,60 @@ find_package(glm)
 find_package(utf8cpp)
 find_package(opengl_system)
 
-add_compile_options(
-    -DSOURCE_DIR="${CMAKE_SOURCE_DIR}"
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Wshadow
-    -Wconversion
-    -Wno-unknown-pragmas
-    -fno-omit-frame-pointer
-    "-fsanitize=address,undefined,leak"
-    -fcolor-diagnostics # Clang-specific: color output
-)
-add_link_options(
-    "-fsanitize=address,undefined,leak"
+# Detect compiler and apply flags accordingly
+if (MSVC)
+    # MSVC (Microsoft Visual C++)
+    add_compile_options(
+        /W4                     # Similar to -Wall -Wextra
+        /permissive-            # Enforce standard conformance
+        /EHsc                   # Enable C++ exceptions
+        /Zi                     # Debug info
+        /sdl                    # Enable additional security checks
+        /D SOURCE_DIR="${CMAKE_SOURCE_DIR}"
     )
+
+    add_link_options(
+        /DEBUG                  # Include debug symbols
+    )
+
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # GCC
+    add_compile_options(
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wshadow
+        -Wconversion
+        -Wno-unknown-pragmas
+        -fno-omit-frame-pointer
+        "-fsanitize=address,undefined,leak"
+        -fdiagnostics-color=always
+        -DSOURCE_DIR="${CMAKE_SOURCE_DIR}"
+    )
+
+    add_link_options(
+        "-fsanitize=address,undefined,leak"
+    )
+
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # Clang and AppleClang
+    add_compile_options(
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wshadow
+        -Wconversion
+        -Wno-unknown-pragmas
+        -fno-omit-frame-pointer
+        "-fsanitize=address,undefined,leak"
+        -fcolor-diagnostics
+        -DSOURCE_DIR="${CMAKE_SOURCE_DIR}"
+    )
+
+    add_link_options(
+        "-fsanitize=address,undefined,leak"
+    )
+
+endif()
 
 add_subdirectory(src)
