@@ -25,7 +25,7 @@ export namespace opengl::shapes
         c_rectangle(glm::vec2 position, glm::vec2 size, glm::vec4 color);
         c_rectangle(c_rectangle &&other) noexcept = default;
         auto operator=(c_rectangle &&other) noexcept -> c_rectangle & = default;
-        auto draw(const c_renderer &renderer, const glm::mat4 &projection) -> void;
+        auto draw(const c_renderer &renderer, const glm::mat4 &projection) const -> void;
     };
 
     class c_circle
@@ -36,7 +36,7 @@ export namespace opengl::shapes
         c_circle(glm::vec2 position, float radius, glm::vec4 color);
         c_circle(c_circle &&other) noexcept = default;
         auto operator=(c_circle &&other) noexcept -> c_circle & = default;
-        auto draw(const c_renderer &renderer, const glm::mat4 &projection) -> void;
+        auto draw(const c_renderer &renderer, const glm::mat4 &projection) const -> void;
     };
 
     class c_triangle
@@ -47,7 +47,7 @@ export namespace opengl::shapes
         c_triangle(glm::vec2 point1, glm::vec2 point2, glm::vec2 point3, glm::vec4 color);
         c_triangle(c_triangle &&other) noexcept = default;
         auto operator=(c_triangle &&other) noexcept -> c_triangle & = default;
-        auto draw(const c_renderer &renderer, const glm::mat4 &projection) -> void;
+        auto draw(const c_renderer &renderer, const glm::mat4 &projection) const -> void;
     };
 
     class c_line
@@ -58,7 +58,7 @@ export namespace opengl::shapes
         c_line(glm::vec2 start, glm::vec2 end, glm::vec4 color);
         c_line(c_line &&other) noexcept = default;
         auto operator=(c_line &&other) noexcept -> c_line & = default;
-        auto draw(const c_renderer &renderer, const glm::mat4 &projection) -> void;
+        auto draw(const c_renderer &renderer, const glm::mat4 &projection) const -> void;
     };
 
     using variant = std::variant<c_rectangle, c_circle, c_triangle, c_line>;
@@ -94,7 +94,7 @@ namespace opengl::shapes
                                        { m_mesh.update_mesh(std::move(vertices), std::move(indices)); });
     }
 
-    auto c_rectangle::draw(const c_renderer &renderer, const glm::mat4 &projection) -> void
+    auto c_rectangle::draw(const c_renderer &renderer, const glm::mat4 &projection) const -> void
     {
         shape_shader().set_uniform_mat4f("projection", projection);
 
@@ -127,7 +127,7 @@ namespace opengl::shapes
                                        { m_mesh.update_mesh(std::move(vertices), std::move(indices)); });
     }
 
-    auto c_circle::draw(const c_renderer &renderer, const glm::mat4 &projection) -> void
+    auto c_circle::draw(const c_renderer &renderer, const glm::mat4 &projection) const -> void
     {
         shape_shader().set_uniform_mat4f("projection", projection);
 
@@ -148,7 +148,7 @@ namespace opengl::shapes
                                        { m_mesh.update_mesh(std::move(vertices), std::move(indices)); });
     }
 
-    auto c_triangle::draw(const c_renderer &renderer, const glm::mat4 &projection) -> void
+    auto c_triangle::draw(const c_renderer &renderer, const glm::mat4 &projection) const -> void
     {
         shape_shader().set_uniform_mat4f("projection", projection);
 
@@ -168,7 +168,7 @@ namespace opengl::shapes
                                        { m_mesh.update_mesh(std::move(vertices), std::move(indices)); });
     }
 
-    auto c_line::draw(const c_renderer &renderer, const glm::mat4 &projection) -> void
+    auto c_line::draw(const c_renderer &renderer, const glm::mat4 &projection) const -> void
     {
         shape_shader().set_uniform_mat4f("projection", projection);
 

@@ -128,6 +128,7 @@ export namespace gui
 
         auto set_projection_matrix(const glm::mat4 &projection) -> void;
         auto set_mouse_position(glm::vec2 mouse_position) -> void;
+        auto get_projection_matrix() const -> glm::mat4;
 
     protected:
         virtual auto render_content() const -> void {};
@@ -693,6 +694,11 @@ namespace gui
     auto c_panel::set_mouse_position(glm::vec2 mouse_position) -> void
     {
         on_mouse_move(mouse_position);
+    }
+
+    auto c_panel::get_projection_matrix() const -> glm::mat4
+    {
+        return m_projection;
     }
 
     auto c_panel::renderer() const -> opengl::c_renderer &
