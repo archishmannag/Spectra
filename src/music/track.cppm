@@ -55,8 +55,8 @@ export namespace music
     public:
         explicit c_track(int track_id, const std::filesystem::path &path);
 
-        c_track(c_track &&) noexcept;
-        auto operator=(c_track &&) noexcept -> c_track &;
+        c_track(c_track &&other) noexcept;
+        auto operator=(c_track &&other) noexcept -> c_track &;
 
         [[nodiscard]] auto get_track_id() const -> int;
 
@@ -68,7 +68,7 @@ export namespace music
         auto set_looping(bool is_looping) -> void;
         [[nodiscard]] auto get_cursor_frame() -> std::uint64_t;
         [[nodiscard]] auto is_looping() const -> bool;
-        [[nodiscard]] auto get_length() -> std::uint64_t;
+        [[nodiscard]] auto get_total_frames() -> std::uint64_t;
 
         [[nodiscard]] auto get_filename() const -> std::string;
         [[nodiscard]] auto data_ptr() -> ma_data_source *;
@@ -88,7 +88,7 @@ namespace
     auto s_ma_snd_data_source::set_looping(ma_data_source *pDataSource, ma_bool32 isLooping) -> ma_result
     {
         auto *self = reinterpret_cast<s_ma_snd_data_source *>(pDataSource);
-        self->m_looping = isLooping != 0;
+        self->m_looping = (isLooping != 0);
         return MA_SUCCESS;
     }
 
@@ -276,7 +276,7 @@ namespace music
 
     auto c_track::seek(std::uint64_t frame_index) -> void
     {
-        ma_data_source_seek_pcm_frames(&m_snd_data_source, frame_index, nullptr);
+        ma_data_source_seek_to_pcm_frame(&m_snd_data_source, frame_index);
     }
 
     auto c_track::get_cursor_frame() -> std::uint64_t
@@ -297,7 +297,7 @@ namespace music
         return m_is_looping;
     }
 
-    auto c_track::get_length() -> std::uint64_t
+    auto c_track::get_total_frames() -> std::uint64_t
     {
         ma_uint64 length = 0;
         ma_data_source_get_length_in_pcm_frames(&m_snd_data_source, &length);

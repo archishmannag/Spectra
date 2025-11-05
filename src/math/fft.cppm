@@ -22,11 +22,10 @@ namespace math
      * @return transformed data
      */
     template <std::floating_point T = float>
-    auto fft(std::valarray<std::complex<T>> &input) -> void
+    auto fft_impl(std::valarray<std::complex<T>> &input) -> void
     {
         static constexpr auto pi_val = std::numbers::pi_v<T>;
-        T constexpr real = 1.0;
-        const size_t size = input.size();
+        const std::size_t size = input.size();
         if (size <= 1)
         {
             return;
@@ -37,14 +36,14 @@ namespace math
         std::valarray<std::complex<T>> odd = input[std::slice(1, size / 2, 2)];
 
         // conquer
-        fft(even);
-        fft(odd);
+        fft_impl(even);
+        fft_impl(odd);
 
         // combine
         for (std::size_t k = 0; k < size / 2; ++k)
         {
             // Polar rotates the vector, product scales it.
-            std::complex<T> vector = std::polar(real, -2 * pi_val * k / size) * odd[k];
+            std::complex<T> vector = std::polar(T{ 1 }, -T{ 2 } * pi_val * static_cast<T>(k) / static_cast<T>(size)) * odd[k];
             input[k] = even[k] + vector;
             input[k + (size / 2)] = even[k] - vector;
         }
@@ -59,19 +58,19 @@ namespace math
      * @return transformed data
      */
     template <std::floating_point T = float>
-    auto ifft(std::valarray<std::complex<T>> &input) -> void
+    auto ifft_impl(std::valarray<std::complex<T>> &input) -> void
     {
         // conjugate the complex numbers
         input = input.apply(std::conj);
 
         // forward fft
-        fft(input);
+        fft_impl(input);
 
         // conjugate the complex numbers again
         input = input.apply(std::conj);
 
         // scale the numbers
-        input /= input.size();
+        input /= static_cast<T>(input.size());
     }
 } // namespace math
 
@@ -85,9 +84,9 @@ export namespace math
             throw std::invalid_argument("Input vector is empty");
         }
         std::valarray<std::complex<T>> temp(input.size());
-        std::ranges::transform(input, std::begin(temp), [](T val)
-                               { return std::complex<T>(val, 0); });
-        fft(temp);
+        std::ranges::transform(input, std::begin(temp), [](const T &val)
+                               { return std::complex<T>(val, T{ 0 }); });
+        fft_impl(temp);
         std::vector<std::complex<T>> output(std::begin(temp), std::end(temp));
         return output;
     }
@@ -100,9 +99,9 @@ export namespace math
             throw std::invalid_argument("Input vector is empty");
         }
         std::valarray<std::complex<T>> temp(input.data(), input.size());
-        fft(temp);
+        ifft_impl(temp);
         std::vector<T> output(input.size());
-        std::ranges::transform(std::begin(temp), std::end(temp), std::begin(output), [](std::complex<T> val)
+        std::ranges::transform(temp, std::begin(output), [](const std::complex<T> &val)
                                { return val.real(); });
         return output;
     }
