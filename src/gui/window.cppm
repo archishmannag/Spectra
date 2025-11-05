@@ -2,16 +2,18 @@ module;
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#include <algorithm>
 #include <cmath>
-#include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <memory>
-#include <print>
-#include <ranges>
 #include <vector>
 export module gui:window;
 
+import :waveform;
+import :tracks;
+import :menu;
+
+import utility;
 import music;
 import math;
 import opengl;
@@ -23,34 +25,45 @@ export namespace gui
     {
     public:
         c_window(int width, int height, const std::string &title);
-        ~c_window();
 
-        void show();
+        auto show() -> void;
 
     private:
         std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)> m_window;
-        std::unique_ptr<opengl::c_shader> m_shader;
+        std::vector<std::shared_ptr<music::c_track>> m_tracks;
 
+        // Components
+        c_menu_bar m_menu_bar;
+        c_waveform_panel m_waveform_pane;
+        c_track_panel m_track_panel;
+
+        // Parent resources shared to components
         music::c_audio_manager m_audio_manager;
-        std::shared_ptr<music::c_track> m_track1;
-        std::shared_ptr<music::c_track> m_track2;
 
-        float m_max_intensity{};
-        std::vector<float> m_audio_samples;
-        std::vector<opengl::s_vertex> m_vertices;
-        std::vector<unsigned int> m_indices;
-        opengl::c_mesh m_mesh;
-        opengl::c_renderer m_renderer;
+        auto register_event_callbacks() -> void;
+        auto render() -> void;
 
-        opengl::c_text_renderer m_text_renderer;
-        std::string m_path;
-
-        void process_events();
-        void render();
+        // Helper functions
+        auto screen_to_opengl_coords(glm::vec2 screen_coords) const -> glm::vec2;
 
         // Callbacks for GLFW events
-        void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
-        void framebuffer_size_callback(GLFWwindow * /*window*/, int width, int height);
+
+        /**
+         * @brief Key callback function to handle key events
+         *
+         * @param key The key that was pressed or released
+         * @param scancode The scancode of the key
+         * @param action The action that was performed (press, release, repeat)
+         * @param mods The modifier keys that were active during the event
+         * @return void
+         *
+         */
+        auto key_callback(int key, int scancode, int action, int mods) -> void;
+        auto framebuffer_size_callback(int width, int height) -> void;
+        auto mouse_position_callback(double xpos, double ypos) -> void;
+        auto mouse_button_callback(int button, int action, int mods) -> void;
+        auto mouse_scroll_callback(double x_offset, double y_offset) -> void;
+        auto path_drop_callback(int count, const char **paths) -> void;
     };
 } // namespace gui
 
@@ -59,10 +72,12 @@ namespace gui
 {
     c_window::c_window(int width, int height, const std::string &title)
         : m_window(nullptr, &glfwDestroyWindow),
-          m_mesh(m_vertices, m_indices)
+          m_menu_bar({ 0, static_cast<float>(height) - 40.0F }, { static_cast<float>(width), 40.0F }, "Spectra Pro"),
+          m_waveform_pane({ width / 2.F, (height - 40.0F) / 4.F }, { width / 2.F, (height - 40.0F) / 2.F }, m_audio_manager),
+          m_track_panel({ 0, (height - 40.0F) / 4.F }, { width / 2.F, (height - 40.0F) / 2.F }, m_tracks)
     {
         m_window = std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)>(glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr), &glfwDestroyWindow);
-        if (!m_window)
+        if (not m_window)
         {
             throw std::runtime_error("Error creating SDL window.");
         }
@@ -77,134 +92,214 @@ namespace gui
             std::cerr << "Error: " << glewGetErrorString(err) << '\n';
         }
 
+        glfwSwapInterval(1); // Enable V-Sync
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallback(opengl::gl_debug_callback_fn, nullptr);
 
-        m_mesh.setup_mesh();
-        m_shader = std::make_unique<opengl::c_shader>(SOURCE_DIR "/src/shaders/frequency_shader.glsl");
-        m_text_renderer.init(width, height);
-        m_text_renderer.load_font(SOURCE_DIR "/assets/fonts/Roboto.ttf", 24);
-
-        m_track1 = std::make_shared<music::c_track>();
-        m_track2 = std::make_shared<music::c_track>();
-
-        m_track1->play_file("bot.mp3");
-        m_track2->play_file("song.mp3");
-
-        m_audio_manager.add_track(m_track1);
-        m_audio_manager.add_track(m_track2);
-
-        m_track1->play();
-        m_track2->play();
-        // std::print("Enter the path to the music file: ");
-        // std::cin >> m_path;
-        m_audio_samples.resize(1 << 12);
+        // OpenGL initialized, now notify all subscribers to initialize themselves
+        opengl::c_text_renderer::instance().load_font(SOURCE_DIR "/assets/fonts/NotoSans.ttf", 24);
+        utility::c_notifier::notify();
     }
 
-    c_window::~c_window()
+    auto c_window::screen_to_opengl_coords(glm::vec2 screen_coords) const -> glm::vec2
     {
+        int width = 0;
+        int height = 0;
+        glfwGetFramebufferSize(m_window.get(), &width, &height);
+        // Convert screen coordinates (top-left origin) to OpenGL coordinates (bottom-left origin)
+        return { screen_coords.x, height - screen_coords.y };
     }
 
-    void c_window::show()
+    auto c_window::show() -> void
     {
-        process_events();
+        register_event_callbacks();
         while (not glfwWindowShouldClose(m_window.get()))
         {
             glfwPollEvents();
+            double xpos = NAN;
+            double ypos = NAN;
+            glfwGetCursorPos(m_window.get(), &xpos, &ypos);
+            auto opengl_coords = screen_to_opengl_coords({ xpos, ypos });
+            m_menu_bar.on_mouse_move(opengl_coords);
+            m_track_panel.set_mouse_position(opengl_coords);
+            m_waveform_pane.set_mouse_position(opengl_coords);
+            m_waveform_pane.update_waveform();
             render();
         }
     }
-    void c_window::key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
+
+    auto c_window::key_callback(int key, int /*scancode*/, int action, int /*mods*/) -> void
     {
         if (action == GLFW_PRESS)
         {
             if (key == GLFW_KEY_SPACE)
             {
-                // if (m_track->is_playing())
-                // {
-                //     m_track->pause();
-                // }
-                // else
-                // {
-                //     m_track->play();
-                // }
+                if (m_audio_manager.is_playing())
+                {
+                    m_audio_manager.pause();
+                }
+                else
+                {
+                    m_audio_manager.play();
+                }
             }
             if (key == GLFW_KEY_ESCAPE)
             {
-                glfwSetWindowShouldClose(window, 1);
+                glfwSetWindowShouldClose(m_window.get(), 1);
             }
         }
     }
 
-    void c_window::framebuffer_size_callback(GLFWwindow * /*window*/, int width, int height)
+    auto c_window::framebuffer_size_callback(int width, int height) -> void
     {
+        glm::mat4 proj = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height), -1.F, 1.F);
         glViewport(0, 0, width, height);
-        m_text_renderer.resize(width, height);
+
+        // Update menu bar
+        m_menu_bar.set_projection(proj);
+        m_menu_bar.update_size({ static_cast<float>(width), 40.0F });
+        m_menu_bar.update_position({ 0, static_cast<float>(height) - 40.0F });
+
+        // Update panels (account for menu bar height)
+        float available_height = height - 40.0F;
+        m_track_panel.set_projection(proj);
+        m_track_panel.update_size({ width / 2, available_height / 2 });
+        m_track_panel.update_location({ 0, available_height / 4.F });
+        m_waveform_pane.set_projection(proj);
+        m_waveform_pane.update_size({ width / 2, available_height / 2 });
+        m_waveform_pane.update_location({ width / 2.F, available_height / 4.F });
+        opengl::c_text_renderer::instance().resize({ width, height });
     }
 
-    void c_window::process_events()
+    auto c_window::mouse_position_callback(double xpos, double ypos) -> void
+    {
+        auto opengl_coords = screen_to_opengl_coords({ xpos, ypos });
+        m_menu_bar.on_mouse_move(opengl_coords);
+        m_track_panel.on_mouse_move(opengl_coords);
+        m_waveform_pane.on_mouse_move(opengl_coords);
+    }
+
+    auto c_window::mouse_button_callback(int button, int action, int /*mods*/) -> void
+    {
+        using enum e_mouse_button;
+        e_mouse_button e_button{};
+
+        switch (button)
+        {
+        case GLFW_MOUSE_BUTTON_LEFT:
+            e_button = left;
+            break;
+        case GLFW_MOUSE_BUTTON_RIGHT:
+            e_button = right;
+            break;
+        case GLFW_MOUSE_BUTTON_MIDDLE:
+            e_button = middle;
+            break;
+        default:
+            return; // Unsupported button
+        }
+        double xpos = NAN;
+        double ypos = NAN;
+        glfwGetCursorPos(m_window.get(), &xpos, &ypos);
+
+        if (action == GLFW_PRESS)
+        {
+            m_menu_bar.on_mouse_press(screen_to_opengl_coords({ xpos, ypos }));
+            m_track_panel.on_mouse_press(screen_to_opengl_coords({ xpos, ypos }), e_button);
+            m_waveform_pane.on_mouse_press(screen_to_opengl_coords({ xpos, ypos }), e_button);
+        }
+        else if (action == GLFW_RELEASE)
+        {
+            m_track_panel.on_mouse_release(screen_to_opengl_coords({ xpos, ypos }), e_button);
+            m_waveform_pane.on_mouse_release(screen_to_opengl_coords({ xpos, ypos }), e_button);
+        }
+    }
+
+    auto c_window::mouse_scroll_callback(double x_offset, double y_offset) -> void
+    {
+        double xpos = NAN;
+        double ypos = NAN;
+        glfwGetCursorPos(m_window.get(), &xpos, &ypos);
+        m_track_panel.on_mouse_scroll({ xpos, ypos }, { x_offset, y_offset });
+        m_waveform_pane.on_mouse_scroll({ xpos, ypos }, { x_offset, y_offset });
+    }
+
+    auto c_window::path_drop_callback(int count, const char **paths) -> void
+    {
+        static int curr_id = 0;
+        if (count <= 0 or paths == nullptr)
+        {
+            return;
+        }
+        for (int i = 0; i < count; i++)
+        {
+            std::filesystem::path curr_path(paths[i]);
+            if (not std::filesystem::exists(curr_path) or not std::filesystem::is_regular_file(curr_path))
+            {
+                continue;
+            }
+            try
+            {
+                auto track = std::make_shared<music::c_track>(curr_id++, curr_path);
+                m_tracks.push_back(track);
+                m_audio_manager.add_track(track);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error adding track: " << e.what() << '\n';
+            }
+        }
+    }
+
+    auto c_window::register_event_callbacks() -> void
     {
         auto key_callback = [](GLFWwindow *window, int key, int scancode, int action, int mods)
         {
-            static_cast<c_window *>(glfwGetWindowUserPointer(window))->key_callback(window, key, scancode, action, mods);
+            static_cast<c_window *>(glfwGetWindowUserPointer(window))->key_callback(key, scancode, action, mods);
         };
 
         auto framebuffer_size_callback = [](GLFWwindow *window, int width, int height)
         {
-            static_cast<c_window *>(glfwGetWindowUserPointer(window))->framebuffer_size_callback(window, width, height);
+            static_cast<c_window *>(glfwGetWindowUserPointer(window))->framebuffer_size_callback(width, height);
+        };
+
+        auto path_drop_callback = [](GLFWwindow *window, int count, const char **paths)
+        {
+            static_cast<c_window *>(glfwGetWindowUserPointer(window))->path_drop_callback(count, paths);
+        };
+        auto mouse_position_callback = [](GLFWwindow *window, double xpos, double ypos)
+        {
+            static_cast<c_window *>(glfwGetWindowUserPointer(window))->mouse_position_callback(xpos, ypos);
+        };
+        auto mouse_button_callback = [](GLFWwindow *window, int button, int action, int mods)
+        {
+            static_cast<c_window *>(glfwGetWindowUserPointer(window))->mouse_button_callback(button, action, mods);
+        };
+        auto mouse_scroll_callback = [](GLFWwindow *window, double x_offset, double y_offset)
+        {
+            static_cast<c_window *>(glfwGetWindowUserPointer(window))->mouse_scroll_callback(x_offset, y_offset);
         };
 
         glfwSetKeyCallback(m_window.get(), key_callback);
         glfwSetFramebufferSizeCallback(m_window.get(), framebuffer_size_callback);
+        glfwSetDropCallback(m_window.get(), path_drop_callback);
+        glfwSetCursorPosCallback(m_window.get(), mouse_position_callback);
+        glfwSetMouseButtonCallback(m_window.get(), mouse_button_callback);
+        glfwSetScrollCallback(m_window.get(), mouse_scroll_callback);
     }
 
-    void c_window::render()
+    auto c_window::render() -> void
     {
-        int window_width = 0;
-        int window_height = 0;
-        glfwGetFramebufferSize(m_window.get(), &window_width, &window_height);
-        m_text_renderer.submit("", (window_width / 2) - 3, window_height / 2, 1.F, glm::vec3{ 1.F, 1.F, 1.F });
-        // m_text_renderer.submit(m_track->get_filename(), window_width / 2, window_height / 2 - 25, 1.F, glm::vec3{ 1.F, 1.F, 1.F });
-        // std::vector<float> current_frame_audio_samples = m_track->get_samples();
-        // std::memmove(m_audio_samples.data(), m_audio_samples.data() + (m_audio_samples.size() - current_frame_audio_samples.size()), (m_audio_samples.size() - current_frame_audio_samples.size()) * sizeof(float));
-        // std::memmove(m_audio_samples.data() + (m_audio_samples.size() - current_frame_audio_samples.size()), current_frame_audio_samples.data(), current_frame_audio_samples.size() * sizeof(float));
-        //
-        // auto frame_audio_sample_fft = math::fft(m_audio_samples)
-        //                               | std::views::transform([](auto &&datum)
-        //                                                       { return std::abs(datum.real()); })
-        //                               | std::ranges::to<std::vector>();
-        // // m_max_intensity = std::max(*std::ranges::max_element(frame_audio_sample_fft), m_max_intensity);
-        // m_max_intensity = std::ranges::max(frame_audio_sample_fft) + 1.F; // Avoid division by zero
-        //
-        // auto base_freq = 20.F;
-        // float freq = base_freq;
-        // auto count = static_cast<std::size_t>(std::floor(12 * (std::log2(static_cast<float>(frame_audio_sample_fft.size())) - std::log2(base_freq)))) + 1; // +1 to include the base frequency
-        //
-        // m_vertices.resize(count * 4); // A rectangle bar = 4 vertices
-        // m_indices.resize(count * 6);  // 6 indices per rectangle (2 triangles, i.e. vertex (1,2,3) and (2,4,3))
-        //
-        // for (std::size_t index{}; freq < (float)frame_audio_sample_fft.size(); freq *= static_cast<float>(std::pow(2, 1.F / 12.F)), ++index)
-        // {
-        //     auto value = frame_audio_sample_fft[static_cast<std::size_t>(std::floor(freq))];
-        //     float x_base = window_width / count * index;
-        //     float y_base = window_height / m_max_intensity * value;
-        //     m_vertices[(std::size_t)(index * 4) + 0] = opengl::s_vertex{ glm::vec3{ x_base, 0, 0 } };
-        //     m_vertices[(std::size_t)(index * 4) + 1] = opengl::s_vertex{ glm::vec3{ (x_base + (window_width / count)), 0, 0 } };
-        //     m_vertices[(std::size_t)(index * 4) + 2] = opengl::s_vertex{ glm::vec3{ x_base, y_base, 0 } };
-        //     m_vertices[(std::size_t)(index * 4) + 3] = opengl::s_vertex{ glm::vec3{ (x_base + (window_width / count)), y_base, 0 } };
-        //     m_indices[(std::size_t)(index * 6) + 0] = (unsigned)index * 4 + 0;
-        //     m_indices[(std::size_t)(index * 6) + 1] = (unsigned)index * 4 + 1;
-        //     m_indices[(std::size_t)(index * 6) + 2] = (unsigned)index * 4 + 2;
-        //     m_indices[(std::size_t)(index * 6) + 3] = (unsigned)index * 4 + 2;
-        //     m_indices[(std::size_t)(index * 6) + 4] = (unsigned)index * 4 + 1;
-        //     m_indices[(std::size_t)(index * 6) + 5] = (unsigned)index * 4 + 3;
-        // }
-        // auto projection = glm::gtc::ortho(0.F, static_cast<float>(window_width), 0.F, static_cast<float>(window_height), -1.F, 1.F);
-        // m_shader->set_uniform_mat4f("projection", projection);
-        // m_shader->set_uniform_1f("u_screenWidth", static_cast<float>(window_width));
-        // m_mesh.update_mesh(m_vertices, m_indices);
-        // m_mesh.draw(m_renderer, *m_shader);
-        m_text_renderer.draw_texts();
+        opengl::c_renderer::clear();
+        int width = 0;
+        int height = 0;
+        glfwGetFramebufferSize(m_window.get(), &width, &height);
+        glm::mat4 proj = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height), -1.F, 1.F);
+
+        m_waveform_pane.render();
+        m_track_panel.render();
+        m_menu_bar.render(proj);
+        opengl::c_text_renderer::instance().draw_texts();
         glfwSwapBuffers(m_window.get());
     }
 } // namespace gui
