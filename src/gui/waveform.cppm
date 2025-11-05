@@ -1,6 +1,7 @@
 module;
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <cstring>
 #include <ranges>
 #include <string>
@@ -51,9 +52,7 @@ export namespace gui
         float m_max_intensity{};
         std::vector<float> m_audio_samples;
         std::vector<float> m_fft;
-        std::vector<opengl::s_vertex> m_vertices;
-        std::vector<unsigned int> m_indices;
-        opengl::c_mesh m_mesh;
+        std::vector<opengl::shapes::c_rectangle> m_rectangles;
         opengl::c_shader m_shader;
     };
 } // namespace gui
@@ -64,7 +63,6 @@ namespace gui
     c_waveform_panel::c_waveform_panel(glm::vec2 position, glm::vec2 size, music::c_audio_manager &audio_manager)
         : c_panel(position, size, "Waveform Panel"),
           m_audio_manager(audio_manager),
-          m_mesh(m_vertices, m_indices),
           m_shader(SOURCE_DIR "/src/shaders/frequency_shader.glsl")
     {
         m_audio_samples.resize(1U << 12U);
@@ -72,60 +70,61 @@ namespace gui
 
     auto c_waveform_panel::update_waveform() -> void
     {
-        if (not m_audio_manager.is_playing())
-        {
-            return; // No audio is playing, nothing to update
-        }
         std::vector<float> current_frame_audio_samples = m_audio_manager.output_buffer();
         if (current_frame_audio_samples.empty())
         {
-            return; // No audio samples to process
+            auto count_to_skip = 44100 / 60;
+            std::memmove(m_audio_samples.data(), m_audio_samples.data() + count_to_skip, (m_audio_samples.size() - count_to_skip) * sizeof(float));
+            std::memset(m_audio_samples.data() + (m_audio_samples.size() - count_to_skip), 0, count_to_skip * sizeof(float));
         }
-        auto count_to_skip = m_audio_samples.size() - current_frame_audio_samples.size();
-        std::memmove(m_audio_samples.data(), m_audio_samples.data() + count_to_skip, current_frame_audio_samples.size() * sizeof(float));
-        std::memmove(m_audio_samples.data() + count_to_skip, current_frame_audio_samples.data(), current_frame_audio_samples.size() * sizeof(float));
+        else
+        {
+            auto count_to_skip = m_audio_samples.size() - current_frame_audio_samples.size();
+            std::memmove(m_audio_samples.data(), m_audio_samples.data() + count_to_skip, current_frame_audio_samples.size() * sizeof(float));
+            std::memmove(m_audio_samples.data() + count_to_skip, current_frame_audio_samples.data(), current_frame_audio_samples.size() * sizeof(float));
+        }
 
+        math::helpers::hanning_window(m_audio_samples);
         m_fft = math::fft(m_audio_samples)
                 | std::views::transform([](auto &&datum)
-                                        { return std::abs(datum.real()); })
+                                        { return std::max(0.F, std::log2(std::abs(datum))); })
                 | std::ranges::to<std::vector>();
-        m_max_intensity = std::max(std::ranges::max(m_fft), 1.F);
+        m_max_intensity = std::ranges::max(m_fft) + 1.F;
 
-        auto base_freq = 20.F;
+        const float base_freq = 1.F;
         float freq = base_freq;
-        auto count = static_cast<int>(std::floor(12 * (std::log2(static_cast<float>(m_fft.size())) - std::log2(base_freq)))) + 1; // +1 to include the base frequency
+        float gamma = 2.F;
+        auto freq_max = static_cast<float>(m_fft.size() / 2);
+        auto count = static_cast<std::size_t>(12 * (std::log2(freq_max) - std::log2(base_freq))) + 1; // +1 to include the base frequency
 
-        m_vertices.clear();
-        m_indices.clear();
-        m_vertices.resize(count * 4);
-        m_indices.resize(count * 6);
+        m_rectangles.clear();
+        m_rectangles.reserve(count);
 
         auto content_location = get_location();
         auto content_size = get_content_area_size();
 
-        for (auto index = 0; freq < static_cast<float>(m_fft.size()); ++index)
+        for (auto index = 0; freq < freq_max; ++index)
         {
-            auto value = m_fft[static_cast<std::size_t>(std::floor(freq))];
+            float freq_low = freq;
+            float freq_high = std::ceil(freq_max * std::pow(static_cast<float>(index + 1) / count, gamma));
+
+            auto value = *std::max_element(m_fft.begin() + static_cast<long>(freq_low), std::min(m_fft.begin() + static_cast<long>(freq_high), m_fft.begin() + m_fft.size() / 2));
             auto x_base = content_location.x + (content_size.x * 2.5 / 100) + ((content_size.x * 95.F / 100) / count * index);
-            auto y_base = content_location.y + (content_size.y * 2.5 / 100) + ((content_size.y * 95.F / 100) / m_max_intensity * value);
-            m_vertices[(std::size_t)(index * 4) + 0] = opengl::s_vertex{ .position = glm::vec3{ x_base, content_location.y + (content_size.y * 2.5 / 100), 0 }, .color = { 1.F, 0.F, 0.F, 1.F } };
-            m_vertices[(std::size_t)(index * 4) + 1] = opengl::s_vertex{ .position = glm::vec3{ (x_base + (content_size.x / count)), content_location.y + (content_size.y * 2.5 / 100), 0 }, .color = { 1.F, 0.F, 0.F, 1.F } };
-            m_vertices[(std::size_t)(index * 4) + 2] = opengl::s_vertex{ .position = glm::vec3{ x_base, y_base, 0 }, .color = { 1.F, 0.F, 0.F, 1.F } };
-            m_vertices[(std::size_t)(index * 4) + 3] = opengl::s_vertex{ .position = glm::vec3{ (x_base + (content_size.x / count)), y_base, 0 }, .color = { 1.F, 0.F, 0.F, 1.F } };
-            m_indices[(std::size_t)(index * 6) + 0] = (unsigned)index * 4 + 0;
-            m_indices[(std::size_t)(index * 6) + 1] = (unsigned)index * 4 + 1;
-            m_indices[(std::size_t)(index * 6) + 2] = (unsigned)index * 4 + 2;
-            m_indices[(std::size_t)(index * 6) + 3] = (unsigned)index * 4 + 2;
-            m_indices[(std::size_t)(index * 6) + 4] = (unsigned)index * 4 + 1;
-            m_indices[(std::size_t)(index * 6) + 5] = (unsigned)index * 4 + 3;
-            freq *= static_cast<float>(std::pow(2, 1.F / 12.F));
+            auto y_base = content_location.y + (content_size.y * 2.5 / 100);
+
+            m_rectangles.emplace_back(opengl::shapes::c_rectangle({ x_base, y_base },
+                                                                  { content_size.x / count, (content_size.y * 95.F / 100) / m_max_intensity * value },
+                                                                  { 0.F, 1.F, 0.F, 1.F }));
+            freq = freq_high;
         }
-        m_mesh.update_mesh(m_vertices, m_indices);
     }
 
     auto c_waveform_panel::render_content() const -> void
     {
-        m_mesh.draw(renderer(), m_shader);
+        for (const auto &rectangle : m_rectangles)
+        {
+            rectangle.draw(renderer(), get_projection_matrix());
+        }
     }
 
     auto c_waveform_panel::set_projection(const glm::mat4 &proj) -> void
