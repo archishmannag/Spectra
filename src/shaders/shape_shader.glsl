@@ -21,6 +21,5 @@ in vec4 vertexColor;
 out vec4 color;
 
 void main() {
-    // Use vertex color if available, otherwise use uniform color
     color = vertexColor;
 }
