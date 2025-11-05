@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -144,8 +145,8 @@ namespace gui
                 shape_batch.emplace_back(opengl::shapes::c_triangle(tri_p1, tri_p2, tri_p3, symbol_color));
             }
 
-            // Track name text
-            glm::vec2 text_pos = { button_center.x + m_button_radius + m_margin, entry_position.y + (entry_size.y / 2.0F) - 8.0F };
+            // Track name text (moved up for better proportional placement)
+            glm::vec2 text_pos = { button_center.x + m_button_radius + m_margin, entry_position.y + (entry_size.y / 2.0F) + 4.0F };
             std::string track_name = track->get_filename();
 
             auto text_size = opengl::c_text_renderer::instance().get_size(track_name, 1.0F);
@@ -162,13 +163,96 @@ namespace gui
             glm::vec3 text_color = { 0.9F, 0.9F, 0.9F };
             opengl::c_text_renderer::instance().submit(track_name, text_pos, 1.0F, text_color);
 
+            // Progress bar section
+            float progress_bar_height = 8.0F;
+            float progress_text_margin = 10.0F;
+
+            // Calculate progress
+            std::uint64_t current_frame = track->get_cursor_frame();
+            std::uint64_t total_frames = track->get_total_frames();
+            float progress = (total_frames > 0) ? static_cast<float>(current_frame) / static_cast<float>(total_frames) : 0.0F;
+            progress = std::clamp(progress, 0.0F, 1.0F);
+
+            // Calculate time text to determine progress bar width
+            constexpr float sample_rate = 44100.0F;
+            float current_seconds = static_cast<float>(current_frame) / sample_rate;
+            float total_seconds = static_cast<float>(total_frames) / sample_rate;
+
+            int current_minutes = static_cast<int>(current_seconds) / 60;
+            int current_secs = static_cast<int>(current_seconds) % 60;
+            int total_minutes = static_cast<int>(total_seconds) / 60;
+            int total_secs = static_cast<int>(total_seconds) % 60;
+
+            std::string progress_text = std::to_string(current_minutes) + ":" + (current_secs < 10 ? "0" : "") + std::to_string(current_secs) + " / " + std::to_string(total_minutes) + ":" + (total_secs < 10 ? "0" : "") + std::to_string(total_secs);
+
+            auto time_text_size = opengl::c_text_renderer::instance().get_size(progress_text, 0.8F);
+
+            // Progress bar starts at track name x-position and ends before time text
+            glm::vec2 progress_bg_pos = {
+                button_center.x + m_button_radius + m_margin,
+                entry_position.y + (entry_size.y / 2.0F) - 12.0F
+            };
+            glm::vec2 progress_bg_size = {
+                entry_size.x - (progress_bg_pos.x - entry_position.x) - time_text_size.x - progress_text_margin - m_margin,
+                progress_bar_height
+            };
+            glm::vec4 progress_bg_color = { 0.25F, 0.25F, 0.3F, 0.8F };
+            shape_batch.emplace_back(opengl::shapes::c_rectangle(progress_bg_pos, progress_bg_size, progress_bg_color));
+
+            // Progress bar fill (colored based on play state)
+            if (progress > 0.0F)
+            {
+                glm::vec2 progress_fill_size = { progress_bg_size.x * progress, progress_bar_height };
+                glm::vec4 progress_fill_color = track->is_playing()
+                                                    ? glm::vec4{ 0.2F, 0.7F, 1.0F, 0.9F }  // Bright blue when playing
+                                                    : glm::vec4{ 0.6F, 0.6F, 0.7F, 0.7F }; // Gray when paused
+                shape_batch.emplace_back(opengl::shapes::c_rectangle(progress_bg_pos, progress_fill_size, progress_fill_color));
+            }
+
+            // Progress bar border for definition
+            glm::vec4 progress_border_color = { 0.5F, 0.5F, 0.6F, 0.6F };
+            float progress_border_width = 1.0F;
+
+            // Top border
+            shape_batch.emplace_back(opengl::shapes::c_rectangle(
+                { progress_bg_pos.x, progress_bg_pos.y + progress_bar_height - progress_border_width },
+                { progress_bg_size.x, progress_border_width },
+                progress_border_color));
+
+            // Bottom border
+            shape_batch.emplace_back(opengl::shapes::c_rectangle(
+                progress_bg_pos,
+                { progress_bg_size.x, progress_border_width },
+                progress_border_color));
+
+            // Left border
+            shape_batch.emplace_back(opengl::shapes::c_rectangle(
+                progress_bg_pos,
+                { progress_border_width, progress_bar_height },
+                progress_border_color));
+
+            // Right border
+            shape_batch.emplace_back(opengl::shapes::c_rectangle(
+                { progress_bg_pos.x + progress_bg_size.x - progress_border_width, progress_bg_pos.y },
+                { progress_border_width, progress_bar_height },
+                progress_border_color));
+
+            // Progress text (current time / total time) - positioned at the right end
+            glm::vec2 progress_text_pos = {
+                progress_bg_pos.x + progress_bg_size.x + progress_text_margin,
+                progress_bg_pos.y - 2.0F // Slightly offset for better alignment
+            };
+
+            glm::vec3 progress_text_color = { 0.7F, 0.7F, 0.8F };
+            opengl::c_text_renderer::instance().submit(progress_text, progress_text_pos, 0.8F, progress_text_color);
+
             // Move to next track position
             current_y -= (m_track_entry_height + m_spacing);
         }
         for (auto &shape : shape_batch)
         {
-            std::visit([this](auto &s)
-                       { s.draw(renderer(), m_proj); },
+            std::visit([this](auto &shape_obj)
+                       { shape_obj.draw(renderer(), m_proj); },
                        shape);
         }
         opengl::c_text_renderer::instance().draw_texts();
@@ -217,6 +301,10 @@ namespace gui
                 continue;
             }
 
+            // Calculate entry position for current track
+            glm::vec2 entry_position = { content_pos.x + m_margin, current_y };
+            glm::vec2 entry_size = { content_size.x - (m_margin * 2.0F), m_track_entry_height };
+
             // Calculate play button position and check if click is within it
             glm::vec2 button_center = { content_pos.x + (2 * m_margin) + m_button_radius, current_y + (m_track_entry_height / 2.0F) };
 
@@ -235,6 +323,43 @@ namespace gui
                     track->play();
                 }
                 return; // Exit after handling the click
+            }
+
+            // Check if click is on progress bar for seeking
+            float progress_bar_height = 8.0F;
+            float progress_text_margin = 10.0F;
+
+            // Calculate time text to determine progress bar width (same calculation as in render)
+            std::uint64_t total_frames = track->get_total_frames();
+            constexpr float sample_rate = 44100.0F;
+            float total_seconds = static_cast<float>(total_frames) / sample_rate;
+            int total_minutes = static_cast<int>(total_seconds) / 60;
+            int total_secs = static_cast<int>(total_seconds) % 60;
+            std::string time_text = "0:00 / " + std::to_string(total_minutes) + ":" + (total_secs < 10 ? "0" : "") + std::to_string(total_secs);
+            auto time_text_size = opengl::c_text_renderer::instance().get_size(time_text, 0.8F);
+
+            // Progress bar position and size (same calculation as in render)
+            glm::vec2 progress_bg_pos = {
+                button_center.x + m_button_radius + m_margin,
+                entry_position.y + (entry_size.y / 2.0F) - 12.0F
+            };
+            glm::vec2 progress_bg_size = {
+                entry_size.x - (progress_bg_pos.x - entry_position.x) - time_text_size.x - progress_text_margin - m_margin,
+                progress_bar_height
+            };
+
+            // Check if click is within progress bar bounds
+            if (mouse_position.x >= progress_bg_pos.x && mouse_position.x <= progress_bg_pos.x + progress_bg_size.x && mouse_position.y >= progress_bg_pos.y && mouse_position.y <= progress_bg_pos.y + progress_bg_size.y)
+            {
+                // Calculate seek position based on click x position
+                float click_ratio = (mouse_position.x - progress_bg_pos.x) / progress_bg_size.x;
+                click_ratio = std::clamp(click_ratio, 0.0F, 1.0F);
+
+                // Calculate target frame
+                auto target_frame = static_cast<std::uint64_t>(static_cast<float>(total_frames) * click_ratio);
+
+                // Seek to target frame
+                track->seek(target_frame);
             }
 
             // Move to next track position
