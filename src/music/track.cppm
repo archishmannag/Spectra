@@ -7,7 +7,7 @@ module;
 #include <vector>
 export module music:track;
 
-namespace
+namespace music
 {
     struct s_ma_snd_data_source
     {
@@ -83,7 +83,7 @@ export namespace music
 } // namespace music
 
 // Implementation
-namespace
+namespace music
 {
     auto s_ma_snd_data_source::set_looping(ma_data_source *pDataSource, ma_bool32 isLooping) -> ma_result
     {

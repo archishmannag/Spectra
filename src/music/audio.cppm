@@ -33,7 +33,7 @@ export namespace music
         std::vector<float> m_output_buffer;
 
         auto auto_cleanup() -> void;
-        static constexpr auto s_callback_fn(ma_device *device, void *output, const void *input, ma_uint32 frame_count) -> void;
+        static auto s_callback_fn(ma_device *device, void *output, const void *input, ma_uint32 frame_count) -> void;
     };
 } // namespace music
 
@@ -135,7 +135,7 @@ namespace music
         m_tracks.erase(first, last);
     }
 
-    constexpr auto c_audio_manager::s_callback_fn(ma_device *device, void *output, const void * /*input*/, ma_uint32 frame_count) -> void
+    auto c_audio_manager::s_callback_fn(ma_device *device, void *output, const void * /*input*/, ma_uint32 frame_count) -> void
     {
         auto *audio_manager = reinterpret_cast<c_audio_manager *>(device->pUserData);
         auto &storage = audio_manager->m_output_buffer;

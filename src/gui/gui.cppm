@@ -1,6 +1,7 @@
 module;
 #include <GLFW/glfw3.h>
 
+#include <string>
 #include <stdexcept>
 export module gui;
 export import :window;

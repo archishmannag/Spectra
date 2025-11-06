@@ -1,6 +1,7 @@
 module;
 #include <GL/glew.h>
 
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -40,7 +41,7 @@ namespace
         using enum e_shader_type;
 
         std::string line;
-        std::array<std::ostringstream, 2> streams;
+        std::array<std::ostringstream, 2> streams{};
         e_shader_type type = e_shader_type::NONE;
         while (std::getline(file, line))
         {

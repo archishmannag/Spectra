@@ -12,7 +12,6 @@ module;
 #include <mutex>
 #include <print>
 #include <string>
-#include <string_view>
 #include <vector>
 export module opengl:text;
 
@@ -70,7 +69,7 @@ export namespace opengl
         auto resize(glm::vec2 new_size) -> void;
         auto submit(const std::string &text, glm::vec2 position, float scale, const glm::vec3 &color) -> void;
         auto draw_texts() -> void;
-        auto get_size(std::string_view text, float scale) const -> glm::vec2;
+        auto get_size(const std::string& text, float scale) const -> glm::vec2;
 
         // Disable copy and move semantics
         c_text_renderer(const c_text_renderer &) = delete;
@@ -139,9 +138,10 @@ namespace opengl
         }
 
         FT_Face face{};
-        if (FT_New_Face(ft_lib, font_path.c_str(), 0, &face))
+        auto path = reinterpret_cast<const char*>(font_path.c_str());   
+        if (FT_New_Face(ft_lib, path, 0, &face))
         {
-            std::println(std::cerr, "Could not load font: {}", font_path.c_str());
+            std::println(std::cerr, "Could not load font: {}", path);
             return;
         }
 
@@ -274,7 +274,7 @@ namespace opengl
         m_text_draw_queue.clear();
     }
 
-    auto c_text_renderer::get_size(std::string_view text, float scale) const -> glm::vec2
+    auto c_text_renderer::get_size(const std::string& text, float scale) const -> glm::vec2
     {
         if (text.empty())
         {

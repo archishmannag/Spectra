@@ -1,5 +1,7 @@
 module;
 #include <GL/glew.h>
+
+#include <cstdint>
 export module opengl:renderer;
 
 import :shader;
