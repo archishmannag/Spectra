@@ -87,8 +87,7 @@ export namespace math
         std::ranges::transform(input, std::begin(temp), [](const T &val)
                                { return std::complex<T>(val, T{ 0 }); });
         fft_impl(temp);
-        std::vector<std::complex<T>> output(std::begin(temp), std::end(temp));
-        return output;
+        return std::vector<std::complex<T>>(std::from_range, temp);
     }
 
     template <std::floating_point T = float>

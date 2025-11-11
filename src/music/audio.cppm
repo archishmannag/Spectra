@@ -145,12 +145,7 @@ namespace music
         std::fill(output_samples, output_samples + frames, 0.F);
         for (std::lock_guard lock(audio_manager->m_mutex); const auto &track_ptr_weak : audio_manager->m_tracks)
         {
-            auto track_ptr = track_ptr_weak.lock();
-            if (not track_ptr)
-            {
-                continue;
-            }
-            if (track_ptr->is_playing())
+            if (auto track_ptr = track_ptr_weak.lock(); track_ptr->is_playing())
             {
                 std::vector<float> temp(frames, 0.F);
                 ma_uint64 frames_read = 0;

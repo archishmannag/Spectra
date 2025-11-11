@@ -508,7 +508,7 @@ namespace gui
 
         opengl::shapes::c_rectangle(title_bar_pos, title_bar_size, title_bar_color).draw(m_renderer, m_projection);
         auto title_text_size = opengl::c_text_renderer::instance().get_size(m_title, 1.F);
-        opengl::c_text_renderer::instance().submit(m_title, title_bar_pos + glm::vec2{ (title_bar_size.x - title_text_size.x) / 2, (title_text_size.y) / 2 }, 1.F, glm::vec3{ 0.F, 1.F, 1.F });
+        opengl::c_text_renderer::instance().submit(m_title, title_bar_pos + glm::vec2{ (title_bar_size.x - title_text_size.x) / 2, (title_text_size.y) / 2 }, 1.F, glm::vec3{ 1.F, 1.F, 1.F });
     }
 
     auto c_panel::render_buttons() const -> void
