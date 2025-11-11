@@ -6,6 +6,7 @@ module;
 #include FT_FREETYPE_H
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -69,7 +70,7 @@ export namespace opengl
         auto resize(glm::vec2 new_size) -> void;
         auto submit(const std::string &text, glm::vec2 position, float scale, const glm::vec3 &color) -> void;
         auto draw_texts() -> void;
-        auto get_size(const std::string& text, float scale) const -> glm::vec2;
+        auto get_size(const std::string &text, float scale) const -> glm::vec2;
 
         // Disable copy and move semantics
         c_text_renderer(const c_text_renderer &) = delete;
@@ -138,7 +139,7 @@ namespace opengl
         }
 
         FT_Face face{};
-        auto path = reinterpret_cast<const char*>(font_path.c_str());   
+        const char *path = reinterpret_cast<const char *>(font_path.c_str());
         if (FT_New_Face(ft_lib, path, 0, &face))
         {
             std::println(std::cerr, "Could not load font: {}", path);
@@ -151,12 +152,14 @@ namespace opengl
 
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Disable byte-alignment restriction
 
+        FT_Set_Char_Size(face, 0, static_cast<FT_F26Dot6>(font_size) * 64, 0, 0); // Set size in 26.6 fractional points
+
         // Load all unicode characters
         std::uint32_t glyph_index{};
         std::uint64_t charcode = FT_Get_First_Char(face, &glyph_index);
         while (glyph_index)
         {
-            if (FT_Load_Char(face, charcode, FT_LOAD_RENDER))
+            if (FT_Load_Char(face, charcode, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL))
             {
                 std::println(std::cerr, "Could not load character '{}'", charcode);
                 continue;
@@ -165,12 +168,13 @@ namespace opengl
             unsigned int texture_id{};
             glGenTextures(1, &texture_id);
             glBindTexture(GL_TEXTURE_2D, texture_id);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, static_cast<int>(face->glyph->bitmap.width), static_cast<int>(face->glyph->bitmap.rows), 0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
+            // Use GL_R8 for explicit 8-bit red channel storage
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, static_cast<int>(face->glyph->bitmap.width), static_cast<int>(face->glyph->bitmap.rows), 0, GL_RED, GL_UNSIGNED_BYTE, face->glyph->bitmap.buffer);
 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
             m_character_map[static_cast<std::uint32_t>(charcode)] = {
                 .texture_id = texture_id,
@@ -197,8 +201,10 @@ namespace opengl
         {
             return;
         }
-        std::lock_guard<std::mutex> lock(m_mutex); // Ensure thread safety
-        m_text_draw_queue.emplace_back(text, position.x, position.y, scale, color);
+        std::lock_guard<std::mutex> lock(m_mutex);
+        float pixel_aligned_x = std::roundf(position.x);
+        float pixel_aligned_y = std::roundf(position.y);
+        m_text_draw_queue.emplace_back(text, pixel_aligned_x, pixel_aligned_y, scale, color);
     }
 
     auto c_text_renderer::draw_texts() -> void
@@ -230,15 +236,15 @@ namespace opengl
                 }
 
                 s_character character_struct = m_character_map[character];
-                float xpos = x + (static_cast<float>(character_struct.bearing.x) * scale);
-                float ypos = y - (static_cast<float>(character_struct.size.y - character_struct.bearing.y) * scale);
-                float char_width = static_cast<float>(character_struct.size.x) * scale;
-                float char_height = static_cast<float>(character_struct.size.y) * scale;
+                float xpos = std::roundf(x + (static_cast<float>(character_struct.bearing.x) * scale));
+                float ypos = std::roundf(y - (static_cast<float>(character_struct.size.y - character_struct.bearing.y) * scale));
+                float char_width = std::roundf(static_cast<float>(character_struct.size.x) * scale);
+                float char_height = std::roundf(static_cast<float>(character_struct.size.y) * scale);
 
                 // Only render if the character has dimensions
                 if (char_width <= 0 or char_height <= 0)
                 {
-                    x += static_cast<float>(character_struct.advance >> 6U) * scale; // Still advance cursor
+                    x += static_cast<float>(character_struct.advance >> 6U) * scale;
                     continue;
                 }
 
@@ -274,7 +280,7 @@ namespace opengl
         m_text_draw_queue.clear();
     }
 
-    auto c_text_renderer::get_size(const std::string& text, float scale) const -> glm::vec2
+    auto c_text_renderer::get_size(const std::string &text, float scale) const -> glm::vec2
     {
         if (text.empty())
         {
