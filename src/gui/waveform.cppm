@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <complex>
 #include <cstring>
@@ -51,8 +52,9 @@ export namespace gui
 
         float m_max_intensity{};
         std::vector<float> m_audio_samples;
-        std::vector<float> m_fft;
+        std::vector<float> m_intensities;
         std::vector<opengl::shapes::c_rectangle> m_rectangles;
+        std::vector<opengl::shapes::c_circle> m_circles;
         opengl::c_shader m_shader;
     };
 } // namespace gui
@@ -65,12 +67,17 @@ namespace gui
           m_audio_manager(audio_manager),
           m_shader(SOURCE_DIR "/src/shaders/frequency_shader.glsl")
     {
-        m_audio_samples.resize(1U << 12U);
+        m_audio_samples.resize(1U << 13U);
     }
 
     auto c_waveform_panel::update_waveform() -> void
     {
-        std::vector<float> current_frame_audio_samples = m_audio_manager.output_buffer();
+        using math::helpers::operator""_percent;
+        std::vector<float> current_frame_audio_samples = m_audio_manager.output_buffer()
+                                                         | std::views::chunk(2)
+                                                         | std::views::transform([](auto &&stereo_sample)
+                                                                                 { return (static_cast<float>(stereo_sample[0]) + static_cast<float>(stereo_sample[1])) / 2.F; })
+                                                         | std::ranges::to<std::vector>();
         if (current_frame_audio_samples.empty())
         {
             auto count_to_skip = 44100 / 60;
@@ -85,46 +92,96 @@ namespace gui
         }
 
         math::helpers::hanning_window(m_audio_samples);
-        m_fft = math::fft(m_audio_samples)
-                | std::views::transform([](auto &&datum)
-                                        { return std::max(0.F, std::log2(std::abs(datum))); })
-                | std::ranges::to<std::vector>();
-        m_max_intensity = std::ranges::max(m_fft) + 1.F;
+        auto temp = math::fft(m_audio_samples);
+        auto fft = temp
+                   | std::views::transform([](std::complex<float> &datum)
+                                           { return std::abs(datum); })
+                   | std::ranges::to<std::vector>();
 
         const float base_freq = 1.F;
-        float freq = base_freq;
-        float gamma = 2.F;
-        auto freq_max = static_cast<float>(m_fft.size() / 2);
-        auto count = static_cast<std::size_t>(12 * (std::log2(freq_max) - std::log2(base_freq))) + 1; // +1 to include the base frequency
+        auto step = std::pow(2.F, 1.F / 12.F); // Semitone step
+        m_max_intensity = 1.F;
+        auto freq_max = static_cast<float>(fft.size()) / 2;
+
+        auto prev = m_intensities;
+        m_intensities.clear();
+        m_intensities.reserve(prev.size());
+
+        for (float freq = base_freq; freq < freq_max; freq = std::ceil(freq * step))
+        {
+            float next = std::ceil(freq * step);
+            auto value = *std::max_element(fft.begin() + static_cast<long>(freq), std::min(fft.begin() + static_cast<long>(next), fft.begin() + freq_max));
+            m_max_intensity = std::max(value, m_max_intensity);
+            m_intensities.push_back(value);
+        }
+
+        // Normalize intensities
+        for (auto &intensity : m_intensities)
+        {
+            intensity /= m_max_intensity;
+        }
+
+        static auto last_time = std::chrono::steady_clock::now();
+        auto current_time = std::chrono::steady_clock::now();
+        auto delta_time = std::chrono::duration<float>(current_time - last_time).count();
+        last_time = current_time;
+
+        const float smoothing_factor = 8.F;
+        if (not prev.empty())
+        {
+            for (auto i = 0U; i < m_intensities.size(); i++)
+            {
+                m_intensities[i] = (m_intensities[i] - prev[i]) * smoothing_factor * static_cast<float>(delta_time) + prev[i];
+            }
+        }
+
+        auto count = m_intensities.size();
 
         m_rectangles.clear();
         m_rectangles.reserve(count);
+        m_circles.clear();
+        m_circles.reserve(count);
 
         auto content_location = get_location();
         auto content_size = get_content_area_size();
 
-        for (auto index = 0; freq < freq_max; ++index)
+        static int offset = 0;
+
+        for (std::size_t index = 0; index < count; ++index)
         {
-            float freq_low = freq;
-            float freq_high = std::ceil(freq_max * std::pow(static_cast<float>(index + 1) / count, gamma));
+            float cell_width = content_size.x * 95._percent / count;
+            auto value = m_intensities[index];
+            auto x_base = content_location.x + (content_size.x * 2.5_percent) + (cell_width * index);
+            auto y_base = content_location.y + (content_size.y * 2.5_percent);
+            auto height = (content_size.y * 95._percent) * value * 9 / 10;
+            glm::vec3 color_hsv = { (((index + offset) % count) / static_cast<float>(count)) * 360.F, .75F, 1.F };
+            float radius = (std::sqrt(value) * 18) * 9 / 10;
+            float max_width = cell_width * 75._percent;
+            float min_width = cell_width * 15._percent;
+            float rect_width = min_width + ((max_width - min_width) * (1.F - value));
 
-            auto value = *std::max_element(m_fft.begin() + static_cast<long>(freq_low), std::min(m_fft.begin() + static_cast<long>(freq_high), m_fft.begin() + m_fft.size() / 2));
-            auto x_base = content_location.x + (content_size.x * 2.5 / 100) + ((content_size.x * 95.F / 100) / count * index);
-            auto y_base = content_location.y + (content_size.y * 2.5 / 100);
-
-            m_rectangles.emplace_back(opengl::shapes::c_rectangle({ x_base, y_base },
-                                                                  { content_size.x / count, (content_size.y * 95.F / 100) / m_max_intensity * value },
-                                                                  { 0.F, 1.F, 0.F, 1.F }));
-            freq = freq_high;
+            m_rectangles.emplace_back(opengl::shapes::c_rectangle({ x_base + ((cell_width - rect_width) / 2), y_base },
+                                                                  { rect_width, height },
+                                                                  math::helpers::hsv_to_rgba(color_hsv)));
+            m_circles.emplace_back(opengl::shapes::c_circle({ x_base + (cell_width / 2), y_base + height },
+                                                            radius,
+                                                            math::helpers::hsv_to_rgba(color_hsv)));
         }
+        offset = (offset + 1) % count;
     }
 
     auto c_waveform_panel::render_content() const -> void
     {
+        opengl::c_renderer::set_scissor_area(get_location(), get_size());
         for (const auto &rectangle : m_rectangles)
         {
             rectangle.draw(renderer(), get_projection_matrix());
         }
+        for (const auto &circle : m_circles)
+        {
+            circle.draw(renderer(), get_projection_matrix());
+        }
+        opengl::c_renderer::reset_scissor_area();
     }
 
     auto c_waveform_panel::set_projection(const glm::mat4 &proj) -> void
