@@ -2,6 +2,7 @@ module;
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <iostream>
@@ -33,7 +34,7 @@ export namespace gui
         std::vector<std::shared_ptr<music::c_track>> m_tracks;
 
         // Components
-        c_menu_bar m_menu_bar;
+        c_popup_menu m_popup_menu;
         c_waveform_panel m_waveform_pane;
         c_track_panel m_track_panel;
 
@@ -72,9 +73,11 @@ namespace gui
 {
     c_window::c_window(int width, int height, const std::string &title)
         : m_window(nullptr, &glfwDestroyWindow),
-          m_menu_bar({ 0, static_cast<float>(height) - 40.0F }, { static_cast<float>(width), 40.0F }, "Spectra Pro"),
-          m_waveform_pane({ width / 2.F, (height - 40.0F) / 4.F }, { width / 2.F, (height - 40.0F) / 2.F }, m_audio_manager),
-          m_track_panel({ 0, (height - 40.0F) / 4.F }, { width / 2.F, (height - 40.0F) / 2.F }, m_tracks)
+          m_popup_menu{},
+          m_waveform_pane({ static_cast<float>(width) / 2.F, static_cast<float>(height) / 4.F },
+                          { static_cast<float>(width) / 2.F, static_cast<float>(height) / 2.F }, m_audio_manager),
+          m_track_panel({ 0.F, static_cast<float>(height) / 4.F },
+                        { static_cast<float>(width) / 2.F, static_cast<float>(height) / 2.F }, m_tracks)
     {
         m_window = std::unique_ptr<GLFWwindow, decltype(&glfwDestroyWindow)>(glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr), &glfwDestroyWindow);
         if (not m_window)
@@ -107,7 +110,7 @@ namespace gui
         int height = 0;
         glfwGetFramebufferSize(m_window.get(), &width, &height);
         // Convert screen coordinates (top-left origin) to OpenGL coordinates (bottom-left origin)
-        return { screen_coords.x, height - screen_coords.y };
+        return { screen_coords.x, static_cast<float>(height) - screen_coords.y };
     }
 
     auto c_window::show() -> void
@@ -120,7 +123,15 @@ namespace gui
             double ypos = NAN;
             glfwGetCursorPos(m_window.get(), &xpos, &ypos);
             auto opengl_coords = screen_to_opengl_coords({ xpos, ypos });
-            m_menu_bar.on_mouse_move(opengl_coords);
+
+            // Update popup menu animation
+            static auto last_time = std::chrono::steady_clock::now();
+            auto current_time = std::chrono::steady_clock::now();
+            auto delta_time = std::chrono::duration<float>(current_time - last_time).count();
+            last_time = current_time;
+
+            m_popup_menu.update(delta_time);
+            m_popup_menu.on_mouse_move(opengl_coords);
             m_track_panel.set_mouse_position(opengl_coords);
             m_waveform_pane.set_mouse_position(opengl_coords);
             m_waveform_pane.update_waveform();
@@ -155,26 +166,23 @@ namespace gui
         glm::mat4 proj = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height), -1.F, 1.F);
         glViewport(0, 0, width, height);
 
-        // Update menu bar
-        m_menu_bar.set_projection(proj);
-        m_menu_bar.update_size({ static_cast<float>(width), 40.0F });
-        m_menu_bar.update_position({ 0, static_cast<float>(height) - 40.0F });
+        // Update popup menu projection
+        m_popup_menu.set_projection(proj);
 
-        // Update panels (account for menu bar height)
-        float available_height = height - 40.0F;
+        // Update panels (use full height without menu bar)
         m_track_panel.set_projection(proj);
-        m_track_panel.update_size({ width / 2, available_height / 2 });
-        m_track_panel.update_location({ 0, available_height / 4.F });
+        m_track_panel.update_size({ static_cast<float>(width) / 2, static_cast<float>(height) / 2 });
+        m_track_panel.update_location({ 0, static_cast<float>(height) / 4.F });
         m_waveform_pane.set_projection(proj);
-        m_waveform_pane.update_size({ width / 2, available_height / 2 });
-        m_waveform_pane.update_location({ width / 2.F, available_height / 4.F });
+        m_waveform_pane.update_size({ static_cast<float>(width) / 2, static_cast<float>(height) / 2 });
+        m_waveform_pane.update_location({ static_cast<float>(width) / 2.F, static_cast<float>(height) / 4.F });
         opengl::c_text_renderer::instance().resize({ width, height });
     }
 
     auto c_window::mouse_position_callback(double xpos, double ypos) -> void
     {
         auto opengl_coords = screen_to_opengl_coords({ xpos, ypos });
-        m_menu_bar.on_mouse_move(opengl_coords);
+        m_popup_menu.on_mouse_move(opengl_coords);
         m_track_panel.on_mouse_move(opengl_coords);
         m_waveform_pane.on_mouse_move(opengl_coords);
     }
@@ -204,9 +212,27 @@ namespace gui
 
         if (action == GLFW_PRESS)
         {
-            m_menu_bar.on_mouse_press(screen_to_opengl_coords({ xpos, ypos }));
-            m_track_panel.on_mouse_press(screen_to_opengl_coords({ xpos, ypos }), e_button);
-            m_waveform_pane.on_mouse_press(screen_to_opengl_coords({ xpos, ypos }), e_button);
+            auto coords = screen_to_opengl_coords({ xpos, ypos });
+
+            if (e_button == e_mouse_button::right)
+            {
+                // Right click - show popup menu
+                m_popup_menu.on_right_click(coords);
+            }
+            else if (e_button == e_mouse_button::left)
+            {
+                // Left click - check if popup menu should handle it, otherwise pass to panels
+                if (!m_popup_menu.on_mouse_press(coords))
+                {
+                    m_track_panel.on_mouse_press(coords, e_button);
+                    m_waveform_pane.on_mouse_press(coords, e_button);
+                }
+            }
+            else
+            {
+                m_track_panel.on_mouse_press(coords, e_button);
+                m_waveform_pane.on_mouse_press(coords, e_button);
+            }
         }
         else if (action == GLFW_RELEASE)
         {
@@ -298,7 +324,7 @@ namespace gui
 
         m_waveform_pane.render();
         m_track_panel.render();
-        m_menu_bar.render(proj);
+        m_popup_menu.render(proj);
         opengl::c_text_renderer::instance().draw_texts();
         glfwSwapBuffers(m_window.get());
     }
