@@ -4,6 +4,7 @@ module;
 #include <cmath>
 #include <complex>
 #include <cstring>
+#include <mutex>
 #include <ranges>
 #include <string>
 #include <vector>
@@ -52,7 +53,7 @@ export namespace gui
 
         float m_max_intensity{};
         std::vector<float> m_audio_samples;
-        std::vector<float> m_intensities;
+        std::vector<float> m_smoothed_intensities;
         std::vector<opengl::shapes::c_rectangle> m_rectangles;
         std::vector<opengl::shapes::c_circle> m_circles;
         opengl::c_shader m_shader;
@@ -68,6 +69,7 @@ namespace gui
           m_shader(SOURCE_DIR "/src/shaders/frequency_shader.glsl")
     {
         m_audio_samples.resize(1U << 13U);
+        m_smoothed_intensities.reserve(1U << 12U);
     }
 
     auto c_waveform_panel::update_waveform() -> void
@@ -80,7 +82,7 @@ namespace gui
                                                          | std::ranges::to<std::vector>();
         if (current_frame_audio_samples.empty())
         {
-            auto count_to_skip = 44100 / 60;
+            auto count_to_skip = 44100 / 60U;
             std::memmove(m_audio_samples.data(), m_audio_samples.data() + count_to_skip, (m_audio_samples.size() - count_to_skip) * sizeof(float));
             std::memset(m_audio_samples.data() + (m_audio_samples.size() - count_to_skip), 0, count_to_skip * sizeof(float));
         }
@@ -102,21 +104,24 @@ namespace gui
         m_max_intensity = 1.F;
         auto freq_max = static_cast<float>(fft.size()) / 2;
 
-        auto prev = m_intensities;
-        m_intensities.clear();
-        m_intensities.reserve(prev.size());
+        std::vector<float> intensities;
+        intensities.reserve(m_smoothed_intensities.size());
 
         for (float freq = base_freq; freq < freq_max;)
         {
             float next = std::ceil(freq * step);
             auto value = *std::max_element(fft.begin() + static_cast<long>(freq), std::min(fft.begin() + static_cast<long>(next), fft.begin() + static_cast<long>(freq_max)));
             m_max_intensity = std::max(value, m_max_intensity);
-            m_intensities.push_back(value);
+            intensities.push_back(value);
             freq = std::ceil(freq * step);
         }
 
+        static std::once_flag flag;
+        std::call_once(flag, [&]()
+                       { m_smoothed_intensities = std::vector<float>(intensities.size(), 0.F); });
+
         // Normalize intensities
-        for (auto &intensity : m_intensities)
+        for (auto &intensity : intensities)
         {
             intensity /= m_max_intensity;
         }
@@ -126,16 +131,13 @@ namespace gui
         auto delta_time = std::chrono::duration<float>(current_time - last_time).count();
         last_time = current_time;
 
-        const float smoothing_factor = 8.F;
-        if (not prev.empty())
+        constexpr float smoothing_factor = 8.F;
+        for (auto i = 0U; i < intensities.size(); i++)
         {
-            for (auto i = 0U; i < m_intensities.size(); i++)
-            {
-                m_intensities[i] = (m_intensities[i] - prev[i]) * smoothing_factor * static_cast<float>(delta_time) + prev[i];
-            }
+            m_smoothed_intensities[i] += (intensities[i] - m_smoothed_intensities[i]) * smoothing_factor * delta_time;
         }
 
-        auto count = m_intensities.size();
+        auto count = m_smoothed_intensities.size();
 
         m_rectangles.clear();
         m_rectangles.reserve(count);
@@ -150,11 +152,11 @@ namespace gui
         for (std::size_t index = 0; index < count; ++index)
         {
             float cell_width = content_size.x * 95._percent / static_cast<float>(count);
-            auto value = m_intensities[index];
+            auto value = m_smoothed_intensities[index];
             auto x_base = content_location.x + (content_size.x * 2.5_percent) + (cell_width * static_cast<float>(index));
             auto y_base = content_location.y + (content_size.y * 2.5_percent);
             auto height = (content_size.y * 95._percent) * value * 9 / 10;
-            glm::vec3 color_hsv = { (static_cast<float>((index + offset) % count) / static_cast<float>(count)) * 360.F, .75F, 1.F };
+            glm::vec3 color_hsv = { value * 360.F, .75F, 1.F };
             float radius = (std::sqrt(value) * 18) * 9 / 10;
             float max_width = cell_width * 75._percent;
             float min_width = cell_width * 15._percent;

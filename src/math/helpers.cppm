@@ -8,12 +8,21 @@ import glm;
 
 export namespace math::helpers
 {
-    constexpr auto hanning_window(std::ranges::range auto &range) -> void
+    template <typename R>
+    concept floating_point_range = std::ranges::range<R> && std::is_floating_point_v<std::ranges::range_value_t<R>>;
+
+    constexpr auto hanning_window(floating_point_range auto &range) -> void
     {
+        using T = std::ranges::range_value_t<decltype(range)>;
+
         const auto size = static_cast<double>(std::ranges::size(range));
+        constexpr T half = T(0.5);
+        constexpr T one = T(1);
+        constexpr T two_pi = T(2) * std::numbers::pi_v<T>;
+
         for (auto i = 0U; i < size; ++i)
         {
-            range[i] *= 0.5 * (1 - std::cos((2 * std::numbers::pi * i) / (size - 1)));
+            range[i] *= static_cast<T>(half * (one - std::cos((two_pi * static_cast<T>(i)) / (size - one))));
         }
     }
 
