@@ -92,9 +92,8 @@ namespace gui
         }
 
         math::helpers::hanning_window(m_audio_samples);
-        auto temp = math::fft(m_audio_samples);
-        auto fft = temp
-                   | std::views::transform([](std::complex<float> &datum)
+        auto fft = math::fft(m_audio_samples)
+                   | std::views::transform([](std::complex<float> &datum) -> float
                                            { return std::abs(datum); })
                    | std::ranges::to<std::vector>();
 
@@ -107,12 +106,13 @@ namespace gui
         m_intensities.clear();
         m_intensities.reserve(prev.size());
 
-        for (float freq = base_freq; freq < freq_max; freq = std::ceil(freq * step))
+        for (float freq = base_freq; freq < freq_max;)
         {
             float next = std::ceil(freq * step);
-            auto value = *std::max_element(fft.begin() + static_cast<long>(freq), std::min(fft.begin() + static_cast<long>(next), fft.begin() + freq_max));
+            auto value = *std::max_element(fft.begin() + static_cast<long>(freq), std::min(fft.begin() + static_cast<long>(next), fft.begin() + static_cast<long>(freq_max)));
             m_max_intensity = std::max(value, m_max_intensity);
             m_intensities.push_back(value);
+            freq = std::ceil(freq * step);
         }
 
         // Normalize intensities
@@ -145,16 +145,16 @@ namespace gui
         auto content_location = get_location();
         auto content_size = get_content_area_size();
 
-        static int offset = 0;
+        static std::size_t offset = 0;
 
         for (std::size_t index = 0; index < count; ++index)
         {
-            float cell_width = content_size.x * 95._percent / count;
+            float cell_width = content_size.x * 95._percent / static_cast<float>(count);
             auto value = m_intensities[index];
-            auto x_base = content_location.x + (content_size.x * 2.5_percent) + (cell_width * index);
+            auto x_base = content_location.x + (content_size.x * 2.5_percent) + (cell_width * static_cast<float>(index));
             auto y_base = content_location.y + (content_size.y * 2.5_percent);
             auto height = (content_size.y * 95._percent) * value * 9 / 10;
-            glm::vec3 color_hsv = { (((index + offset) % count) / static_cast<float>(count)) * 360.F, .75F, 1.F };
+            glm::vec3 color_hsv = { (static_cast<float>((index + offset) % count) / static_cast<float>(count)) * 360.F, .75F, 1.F };
             float radius = (std::sqrt(value) * 18) * 9 / 10;
             float max_width = cell_width * 75._percent;
             float min_width = cell_width * 15._percent;
