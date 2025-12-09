@@ -42,7 +42,7 @@ export namespace math::helpers
      */
     auto hsv_to_rgba(const glm::vec3 &hsv) -> glm::vec4
     {
-        float hue = hsv.x;
+        float hue = std::fmod(hsv.x, 360.F);
         float saturation = hsv.y;
         float value = hsv.z;
 

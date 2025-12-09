@@ -34,9 +34,12 @@ namespace utility
         if (notified)
         {
             callback();
-            return;
         }
-        s_subscribers.push(std::move(callback));
+        else
+        {
+            std::scoped_lock lock(s_mutex);
+            s_subscribers.push(std::move(callback));
+        }
     }
 
     void c_notifier::notify()
