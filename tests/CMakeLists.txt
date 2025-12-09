@@ -1,7 +1,13 @@
 add_executable(audio_visualizer_tests)
 
 target_sources(audio_visualizer_tests
-   PRIVATE
+    PRIVATE
+    test_fft.cpp
+    test_math_helpers.cpp
+    test_buffer_layout.cpp
+    test_notifier.cpp
+    test_stress.cpp
+    test_fuzz.cpp
 )
 
 target_link_libraries(audio_visualizer_tests
