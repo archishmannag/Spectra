@@ -2,10 +2,10 @@
 
 A real-time audio visualizer built with C++ and OpenGL.
 
-<!-- ![License](https://img.shields.io/badge/license-MIT-blue.svg) -->
-<!-- ![C++](https://img.shields.io/badge/C%2B%2B-23-blue.svg) -->
-<!-- ![OpenGL](https://img.shields.io/badge/OpenGL-4.2+-green.svg) -->
-<!-- ![Build System](https://img.shields.io/badge/build-CMake%20%2B%20Conan-orange.svg) -->
+![License](https://img.shields.io/badge/license-MIT-blue.svg) 
+![C++](https://img.shields.io/badge/C%2B%2B-23-blue.svg) 
+![OpenGL](https://img.shields.io/badge/OpenGL-4.2+-green.svg) 
+![Build System](https://img.shields.io/badge/build-CMake%20%2B%20Conan-orange.svg) 
 
 ## 🎵 Features
 
