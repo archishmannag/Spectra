@@ -16,6 +16,7 @@ find_package(glew)
 find_package(glm)
 find_package(utf8cpp)
 find_package(opengl_system)
+find_package(Catch2)
 
 # Detect compiler and apply flags accordingly
 if (MSVC)

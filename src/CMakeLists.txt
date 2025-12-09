@@ -46,5 +46,6 @@ target_link_libraries(${PROJECT_NAME}
         glm::glm
         utf8cpp
         opengl::opengl
+        Catch2::Catch2WithMain
         #stdc++exp # Link with the experimental C++ library for std::stacktrace on libstdc++ (Will remove for libcxx)
 )

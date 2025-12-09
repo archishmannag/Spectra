@@ -15,9 +15,11 @@ class AudioVisualiser(ConanFile):
         self.requires("glm/1.0.1")
         self.requires("utfcpp/4.0.5")
         self.requires("opengl/system")
+        self.requires("catch2/3.11.0")
 
     def configure(self):
         self.options["miniaudio/*"].header_only = False
+        self.options["catch2/*"].console_width = 150
 
     def layout(self):
         cmake_layout(self)
