@@ -74,5 +74,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 
 endif()
 
+include(CTest)
+enable_testing()
 add_subdirectory(src)
 add_subdirectory(tests)
