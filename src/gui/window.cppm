@@ -46,6 +46,7 @@ export namespace gui
 
         // Helper functions
         auto screen_to_opengl_coords(glm::vec2 screen_coords) const -> glm::vec2;
+        auto set_projections() -> void;
 
         // Callbacks for GLFW events
 
@@ -73,7 +74,6 @@ namespace gui
 {
     c_window::c_window(int width, int height, const std::string &title)
         : m_window(nullptr, &glfwDestroyWindow),
-          m_popup_menu{},
           m_waveform_pane({ static_cast<float>(width) / 2.F, static_cast<float>(height) / 4.F },
                           { static_cast<float>(width) / 2.F, static_cast<float>(height) / 2.F }, m_audio_manager),
           m_track_panel({ 0.F, static_cast<float>(height) / 4.F },
@@ -113,9 +113,22 @@ namespace gui
         return { screen_coords.x, static_cast<float>(height) - screen_coords.y };
     }
 
+    auto c_window::set_projections() -> void
+    {
+        int width = 0;
+        int height = 0;
+        glfwGetFramebufferSize(m_window.get(), &width, &height);
+        glm::mat4 proj = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height), -1.F, 1.F);
+        m_waveform_pane.set_projection(proj);
+        m_track_panel.set_projection(proj);
+        m_popup_menu.set_projection(proj);
+        opengl::c_text_renderer::instance().resize({ width, height });
+    }
+
     auto c_window::show() -> void
     {
         register_event_callbacks();
+        set_projections();
         while (not glfwWindowShouldClose(m_window.get()))
         {
             glfwPollEvents();
@@ -317,14 +330,10 @@ namespace gui
     auto c_window::render() -> void
     {
         opengl::c_renderer::clear();
-        int width = 0;
-        int height = 0;
-        glfwGetFramebufferSize(m_window.get(), &width, &height);
-        glm::mat4 proj = glm::gtc::ortho(0.F, static_cast<float>(width), 0.F, static_cast<float>(height), -1.F, 1.F);
 
         m_waveform_pane.render();
         m_track_panel.render();
-        m_popup_menu.render(proj);
+        m_popup_menu.render();
         opengl::c_text_renderer::instance().draw_texts();
         glfwSwapBuffers(m_window.get());
     }

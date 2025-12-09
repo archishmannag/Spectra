@@ -35,7 +35,7 @@ export namespace gui
         c_popup_menu();
         ~c_popup_menu() = default;
 
-        void render(const glm::mat4 &projection) const;
+        void render() const;
         void set_projection(const glm::mat4 &proj);
 
         // Event handling
@@ -48,7 +48,7 @@ export namespace gui
         void clear_menu_items();
         void show_at_position(glm::vec2 position);
         void hide();
-        auto is_visible() const -> bool;
+        [[nodiscard]] auto is_visible() const -> bool;
 
         // Animation update
         void update(float delta_time);
@@ -85,7 +85,11 @@ export namespace gui
 // Implementation
 namespace gui
 {
-    c_popup_menu::c_popup_menu() : m_position(0.0F), m_target_position(0.0F), m_click_origin(0.0F), m_projection(glm::mat4(1.0F))
+    c_popup_menu::c_popup_menu()
+        : m_position(0.0F),
+          m_target_position(0.0F),
+          m_click_origin(0.0F),
+          m_projection(1.F)
     {
         auto init = [&]
         {
@@ -100,7 +104,7 @@ namespace gui
         utility::c_notifier::subscribe(init);
     }
 
-    void c_popup_menu::render(const glm::mat4 &projection) const
+    void c_popup_menu::render() const
     {
         if (m_animation_state == e_animation_state::hidden)
         {
@@ -113,7 +117,7 @@ namespace gui
 
         // Menu background with better colors inspired by panels
         glm::vec4 menu_bg_color = { 0.06F, 0.06F, 0.12F, 0.95F * alpha }; // Dark blue-ish like panels
-        opengl::shapes::c_rectangle(current_pos, current_size, menu_bg_color).draw(opengl::c_renderer{}, projection);
+        opengl::shapes::c_rectangle(current_pos, current_size, menu_bg_color).draw(opengl::c_renderer{}, m_projection);
 
         // Menu border with subtle glow effect
         glm::vec4 border_color = { 0.22F, 0.22F, 0.28F, 0.8F * alpha }; // Subtle purple-gray border
@@ -122,17 +126,17 @@ namespace gui
         // Top border
         opengl::shapes::c_rectangle(current_pos + glm::vec2{ 0, current_size.y - border_thickness },
                                     { current_size.x, border_thickness }, border_color)
-            .draw(opengl::c_renderer{}, projection);
+            .draw(opengl::c_renderer{}, m_projection);
         // Bottom border
         opengl::shapes::c_rectangle(current_pos, { current_size.x, border_thickness }, border_color)
-            .draw(opengl::c_renderer{}, projection);
+            .draw(opengl::c_renderer{}, m_projection);
         // Left border
         opengl::shapes::c_rectangle(current_pos, { border_thickness, current_size.y }, border_color)
-            .draw(opengl::c_renderer{}, projection);
+            .draw(opengl::c_renderer{}, m_projection);
         // Right border
         opengl::shapes::c_rectangle(current_pos + glm::vec2{ current_size.x - border_thickness, 0 },
                                     { border_thickness, current_size.y }, border_color)
-            .draw(opengl::c_renderer{}, projection);
+            .draw(opengl::c_renderer{}, m_projection);
 
         // Only render menu items if the menu is big enough to show them
         float full_height = (static_cast<float>(m_menu_items.size()) * m_menu_item_height) + (2.0F * m_menu_margin);
@@ -160,7 +164,7 @@ namespace gui
             if (item.is_hovered)
             {
                 glm::vec4 hover_color = { 0.15F, 0.15F, 0.25F, 0.9F * alpha }; // Slightly brighter blue-purple
-                opengl::shapes::c_rectangle(item_pos, item_size, hover_color).draw(opengl::c_renderer{}, projection);
+                opengl::shapes::c_rectangle(item_pos, item_size, hover_color).draw(opengl::c_renderer{}, m_projection);
             }
 
             // Text with better contrast
