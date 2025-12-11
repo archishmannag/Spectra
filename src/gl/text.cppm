@@ -56,6 +56,7 @@ export namespace opengl
         std::vector<s_text_draw_data> m_text_draw_queue;      // Queue of text draw data
         std::map<std::uint32_t, s_character> m_character_map; // Map of character to character map
         glm::mat4 m_projection_matrix{};                      // Projection matrix for text rendering
+        unsigned int m_loaded_font_size{};                    // Loaded font size
 
         c_vertex_array m_vao;
         c_vertex_buffer<float> m_vbo;
@@ -68,9 +69,9 @@ export namespace opengl
         static auto instance() -> c_text_renderer &;
         auto load_font(const std::filesystem::path &font_path, unsigned int font_size) -> void;
         auto resize(glm::vec2 new_size) -> void;
-        auto submit(const std::string &text, glm::vec2 position, float scale, const glm::vec3 &color) -> void;
+        auto submit(const std::string &text, glm::vec2 position, float font_size, const glm::vec3 &color) -> void;
         auto draw_texts() -> void;
-        auto get_size(const std::string &text, float scale) const -> glm::vec2;
+        auto get_size(const std::string &text, float font_size) const -> glm::vec2;
 
         // Disable copy and move semantics
         c_text_renderer(const c_text_renderer &) = delete;
@@ -139,7 +140,7 @@ namespace opengl
         }
 
         FT_Face face{};
-        const char *path = reinterpret_cast<const char *>(font_path.c_str());
+        const char *path = font_path.c_str();
         if (FT_New_Face(ft_lib, path, 0, &face))
         {
             std::println(std::cerr, "Could not load font: {}", path);
@@ -184,6 +185,7 @@ namespace opengl
             };
             charcode = FT_Get_Next_Char(face, charcode, &glyph_index);
         }
+        m_loaded_font_size = font_size;
 
         FT_Done_Face(face);
         FT_Done_FreeType(ft_lib);
@@ -195,12 +197,13 @@ namespace opengl
         m_shader.set_uniform_mat4f("projection", m_projection_matrix);
     }
 
-    auto c_text_renderer::submit(const std::string &text, glm::vec2 position, float scale, const glm::vec3 &color) -> void
+    auto c_text_renderer::submit(const std::string &text, glm::vec2 position, float font_size, const glm::vec3 &color) -> void
     {
         if (text.empty())
         {
             return;
         }
+        float scale = font_size / static_cast<float>(m_loaded_font_size);
         std::lock_guard<std::mutex> lock(m_mutex);
         float pixel_aligned_x = std::roundf(position.x);
         float pixel_aligned_y = std::roundf(position.y);
@@ -280,12 +283,14 @@ namespace opengl
         m_text_draw_queue.clear();
     }
 
-    auto c_text_renderer::get_size(const std::string &text, float scale) const -> glm::vec2
+    auto c_text_renderer::get_size(const std::string &text, float font_size) const -> glm::vec2
     {
         if (text.empty())
         {
             return { 0.F, 0.F };
         }
+
+        float scale = font_size / static_cast<float>(m_loaded_font_size);
 
         float width = 0.F;
         float height = 0.F;
