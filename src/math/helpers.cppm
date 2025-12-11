@@ -43,10 +43,18 @@ export namespace math::helpers
     auto hsv_to_rgba(const glm::vec3 &hsv) -> glm::vec4
     {
         float hue = std::fmod(hsv.x, 360.F);
+        if (not std::isfinite(hue))
+        {
+            hue = 0.0F;
+        }
+        else if (hue < 0.0F)
+        {
+            hue += 360.0F;
+        }
         float saturation = hsv.y;
         float value = hsv.z;
 
-        int hue_segment = static_cast<int>(hue / 60.0F) % 6;
+        int hue_segment = static_cast<int>(std::floor(hue / 60.0F)) % 6;
         float fractional_hue = (hue / 60.0F) - static_cast<float>(hue_segment);
         float primary_value = value * (1.0F - saturation);
         float secondary_value = value * (1.0F - fractional_hue * saturation);
